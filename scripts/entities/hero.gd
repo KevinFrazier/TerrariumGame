@@ -18,8 +18,8 @@ extends CharacterBody3D
 @export_group("Camera Orbit")
 @export var cam_yaw_speed: float = 3.6       ## radians/sec from aim stick x
 @export var cam_pitch_speed: float = 2.6     ## radians/sec from aim stick y
-@export var cam_pitch_min: float = 0.05      ## near level
-@export var cam_pitch_max: float = 1.5708    ## 90 degrees: straight down
+@export var cam_pitch_min: float = -1.5708   ## -90 degrees: straight up at the sky
+@export var cam_pitch_max: float = 1.5708    ## +90 degrees: straight down at the floor
 @export var cam_pitch_start: float = 0.45    ## ~26 degrees, default tilt
 
 var controlled: bool = false
