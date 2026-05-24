@@ -110,3 +110,6 @@ The lobby's "Start Match" button loads the arena. `Esc` quits.
 - Keep binary asset diffs small; prefer optimized PNG/OGG over raw files.
 - Default workflow: develop on the feature branch, and at the end of each task
   fast-forward `main` to the latest commit and push it (no need to ask first).
+- NEVER force push (no `--force`, `--force-with-lease`, or `-f`) to any branch,
+  under any circumstance. If a normal push is rejected, stop and ask — do not
+  override.
