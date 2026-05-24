@@ -98,13 +98,15 @@ Register globals in **Project Settings → Autoload**. Scripts live in
 Open `project.godot` in Godot 4.3+ and press F5, or from the command line:
 
 ```bash
-godot --path . res://scenes/main/main.tscn
+godot --path . res://scenes/ui/lobby.tscn
 ```
 
-The sample scene shows a title label and exits on `Esc`.
+The lobby's "Start Match" button loads the arena. `Esc` quits.
 
 ## Git Hygiene
 
 - `.godot/` is gitignored — it's regenerated on first open.
 - Commit `.import` metadata for assets so other contributors don't re-import.
 - Keep binary asset diffs small; prefer optimized PNG/OGG over raw files.
+- Default workflow: develop on the feature branch, and at the end of each task
+  fast-forward `main` to the latest commit and push it (no need to ask first).
