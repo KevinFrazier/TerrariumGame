@@ -48,7 +48,7 @@ text = "Start Match"
 
 [node name="Hint" type="Label" parent="Center/VBox"]
 layout_mode = 2
-text = "Move: WASD / left stick   Aim: arrows / right stick
+text = "Move: WASD / left stick   Camera: arrows / right stick
 Fire: J / left-click   Melee: K / right-click
 Swap hero: Tab"
 horizontal_alignment = 1

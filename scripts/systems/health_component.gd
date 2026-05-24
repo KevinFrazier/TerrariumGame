@@ -10,6 +10,8 @@ signal died(source: Node)
 
 @export var max_hp: float = 100.0
 @export var invulnerable: bool = false
+@export var popup_height: float = 2.2  ## height above the host to float damage numbers
+@export var show_damage_numbers: bool = true
 
 var current_hp: float
 var _dead: bool = false
@@ -21,6 +23,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 	if _dead or invulnerable or amount <= 0.0:
 		return
 	current_hp = maxf(current_hp - amount, 0.0)
+	_spawn_popup(amount)
 	damaged.emit(amount, source)
 	health_changed.emit(current_hp, max_hp)
 	if current_hp <= 0.0:
@@ -40,6 +43,15 @@ func revive(to_hp: float = -1.0) -> void:
 
 func is_dead() -> bool:
 	return _dead
+
+func _spawn_popup(amount: float) -> void:
+	if not show_damage_numbers or not is_inside_tree():
+		return
+	var host := get_parent() as Node3D
+	var scene := get_tree().current_scene
+	if host == null or scene == null:
+		return
+	DamagePopup.spawn(scene, host.global_position + Vector3.UP * popup_height, amount)
 
 func fraction() -> float:
 	return current_hp / max_hp if max_hp > 0.0 else 0.0
