@@ -45,35 +45,6 @@ text = "Towers: 0/3"
 layout_mode = 2
 text = ""
 
-[node name="TowerInfo" type="PanelContainer" parent="."]
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -260.0
-offset_top = 64.0
-offset_right = -20.0
-offset_bottom = 210.0
-mouse_filter = 2
-visible = false
-
-[node name="Margin" type="MarginContainer" parent="TowerInfo"]
-mouse_filter = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 10
-
-[node name="VBox" type="VBoxContainer" parent="TowerInfo/Margin"]
-mouse_filter = 2
-theme_override_constants/separation = 4
-
-[node name="NameLabel" type="Label" parent="TowerInfo/Margin/VBox"]
-mouse_filter = 2
-text = "Tower"
-
-[node name="DetailsLabel" type="Label" parent="TowerInfo/Margin/VBox"]
-mouse_filter = 2
-text = ""
-
 [node name="MoveStick" type="Control" parent="."]
 anchor_top = 1.0
 anchor_bottom = 1.0

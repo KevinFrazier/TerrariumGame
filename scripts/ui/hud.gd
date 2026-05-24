@@ -5,9 +5,12 @@ extends CanvasLayer
 ## overlay. Feeds stick values into the active hero each frame.
 
 const LOBBY_SCENE := "res://scenes/ui/lobby.tscn"
-const TOWER_INSPECT_RANGE := 7.0  ## how close the hero must be to inspect a tower
+const TOWER_INSPECT_RANGE := 7.0       ## how close the hero must be to inspect a tower
+const TOWER_LABEL_SIDE_OFFSET := 2.5   ## metres to the (camera) right of the tower
+const TOWER_LABEL_HEIGHT := 3.4        ## metres above the tower base
 
 var _hero: Hero
+var _tower_label: Label3D  ## world-space inspect panel, floats beside the nearest tower
 
 @onready var move_stick: VirtualJoystick = $MoveStick
 @onready var aim_stick: VirtualJoystick = $AimStick
@@ -18,9 +21,6 @@ var _hero: Hero
 @onready var currency_label: Label = $TopBar/CurrencyLabel
 @onready var team_label: Label = $TopBar/TeamLabel
 @onready var build_menu: BuildMenu = $BuildMenu
-@onready var tower_info: PanelContainer = $TowerInfo
-@onready var tower_info_name: Label = $TowerInfo/Margin/VBox/NameLabel
-@onready var tower_info_details: Label = $TowerInfo/Margin/VBox/DetailsLabel
 @onready var result_panel: Panel = $ResultPanel
 @onready var result_label: Label = $ResultPanel/VBox/ResultLabel
 @onready var back_button: Button = $ResultPanel/VBox/BackButton
@@ -63,7 +63,7 @@ func _process(_delta: float) -> void:
 		tower_button.set_pressed_no_signal(_hero.is_tower_throw_armed())
 	_update_tower_info()
 
-## Show stats for the nearest tower the hero is standing close to (any team).
+## Float a world-space stats panel beside the nearest tower the hero stands by.
 func _update_tower_info() -> void:
 	var nearest: Tower = null
 	var best := TOWER_INSPECT_RANGE
@@ -76,16 +76,32 @@ func _update_tower_info() -> void:
 			best = d
 			nearest = tower
 	if nearest == null:
-		tower_info.visible = false
+		if _tower_label and is_instance_valid(_tower_label):
+			_tower_label.visible = false
 		return
-	_populate_tower_info(nearest)
-	tower_info.visible = true
+	_ensure_tower_label()
+	if _tower_label == null:
+		return
+	_tower_label.text = _tower_info_text(nearest)
+	_tower_label.modulate = Team.body_color(nearest.team)
+	_tower_label.global_position = _tower_label_position(nearest)
+	_tower_label.visible = true
 
-func _populate_tower_info(tower: Tower) -> void:
+## Position the panel to the camera's right of the tower, above its base.
+func _tower_label_position(tower: Tower) -> Vector3:
+	var right := Vector3.RIGHT
+	var cam := _hero.camera
+	if cam:
+		right = cam.global_transform.basis.x
+		right.y = 0.0
+		if right.length_squared() > 0.0001:
+			right = right.normalized()
+	return tower.global_position + right * TOWER_LABEL_SIDE_OFFSET + Vector3.UP * TOWER_LABEL_HEIGHT
+
+func _tower_info_text(tower: Tower) -> String:
 	var def := tower.definition
-	tower_info_name.text = def.display_name if def else "Tower"
-	tower_info_name.modulate = Team.body_color(tower.team)
 	var lines: Array[String] = []
+	lines.append(def.display_name if def else "Tower")
 	lines.append("Owner: %s" % Team.display_name(tower.team))
 	lines.append("HP: %d / %d" % [roundi(tower.health.current_hp), roundi(tower.health.max_hp)])
 	if def:
@@ -96,7 +112,24 @@ func _populate_tower_info(tower: Tower) -> void:
 			lines.append("Blast radius: %.0f" % def.blast_radius)
 		if def.slow_factor > 0.0:
 			lines.append("Slow: %d%% for %.1fs" % [roundi((1.0 - def.slow_factor) * 100.0), def.slow_duration_sec])
-	tower_info_details.text = "\n".join(lines)
+	return "\n".join(lines)
+
+func _ensure_tower_label() -> void:
+	if _tower_label and is_instance_valid(_tower_label):
+		return
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	_tower_label = Label3D.new()
+	_tower_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_tower_label.no_depth_test = true
+	_tower_label.pixel_size = 0.006
+	_tower_label.font_size = 40
+	_tower_label.outline_size = 16
+	_tower_label.outline_modulate = Color(0, 0, 0, 0.9)
+	_tower_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_tower_label.visible = false
+	scene.add_child(_tower_label)
 
 func _on_currency_changed(team: int, amount: int) -> void:
 	if _hero and int(_hero.team) == team:
