@@ -1,12 +1,11 @@
 class_name Hero
-extends CharacterBody3D
+extends CombatActor
 ## Player-controlled hero. Twin-stick: left stick moves (camera-relative), right
 ## stick orbits the camera around the hero. The hero faces its movement
 ## direction; fire shoots where the camera looks (assisted toward the nearest
 ## enemy via the shared Targeter). Only the `controlled` hero reads input and
 ## owns the camera.
 
-@export var team: Team.Id = Team.Id.A
 @export var move_speed: float = 7.0
 @export var turn_speed: float = 12.0
 @export var fire_cooldown_sec: float = 0.45
@@ -26,6 +25,7 @@ extends CharacterBody3D
 @export_group("Tower Throw")
 @export var throw_speed: float = 16.0        ## initial launch speed of the build arc
 @export var trajectory_steps: int = 90
+## Fallback when no tower is selected in the build menu.
 @export var build_tower_definition: TowerDefinition = preload("res://resources/towers/basic_tower.tres")
 
 var controlled: bool = false
@@ -43,7 +43,6 @@ var _throw_armed := false
 var _trajectory: MeshInstance3D
 var _landing_marker: MeshInstance3D
 var _spawn_transform: Transform3D
-var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -52,7 +51,6 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 @onready var mesh: MeshInstance3D = $Body/Mesh
 @onready var muzzle: Marker3D = $Body/Muzzle
 @onready var targeter: Targeter = $Targeter
-@onready var health: HealthComponent = $HealthComponent
 @onready var melee_area: Area3D = $Body/MeleeArea
 
 func _ready() -> void:
@@ -112,6 +110,7 @@ func _gather_aim() -> Vector2:
 
 # --- main loop -------------------------------------------------------------
 func _physics_process(delta: float) -> void:
+	tick_slow(delta)
 	_fire_timer = maxf(_fire_timer - delta, 0.0)
 	_melee_timer = maxf(_melee_timer - delta, 0.0)
 
@@ -136,8 +135,9 @@ func _physics_process(delta: float) -> void:
 	if move_dir.length() > 1.0:
 		move_dir = move_dir.normalized()
 
-	velocity.x = move_dir.x * move_speed
-	velocity.z = move_dir.z * move_speed
+	var spd := move_speed * speed_mult()
+	velocity.x = move_dir.x * spd
+	velocity.z = move_dir.z * spd
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
@@ -212,7 +212,7 @@ func is_tower_throw_armed() -> bool:
 func _throw_tower() -> void:
 	if _fire_timer > 0.0 or health.is_dead():
 		return
-	var def := build_tower_definition
+	var def: TowerDefinition = GameState.selected_tower if GameState.selected_tower != null else build_tower_definition
 	if def == null or projectile_scene == null:
 		return
 	# Reserve the slot + gold at launch so spam-arming can't exceed the cap.
@@ -311,9 +311,6 @@ func get_melee_ready() -> float:
 	return 1.0 - (_melee_timer / melee_cooldown_sec) if melee_cooldown_sec > 0.0 else 1.0
 
 # --- damage / death --------------------------------------------------------
-func take_damage(amount: float, source: Node = null) -> void:
-	health.take_damage(amount, source)
-
 func _on_died(_source: Node) -> void:
 	EventBus.hero_died.emit(int(team), self)
 	set_tower_throw_armed(false)

@@ -8,6 +8,7 @@ const MAX_TOWERS_PER_TEAM := 3
 var local_team: Team.Id = Team.Id.A          ## Which hero the single player drives.
 var winner: Team.Id = Team.Id.NEUTRAL
 var match_active: bool = false
+var selected_tower: TowerDefinition          ## Tower type the build menu/throw will place.
 
 var _currency := {Team.Id.A: 0, Team.Id.B: 0}
 var _tower_count := {Team.Id.A: 0, Team.Id.B: 0}

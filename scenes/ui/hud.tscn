@@ -37,10 +37,6 @@ offset_bottom = 170.0
 theme_override_constants/separation = 6
 script = ExtResource("3_build")
 
-[node name="BuildButton" type="Button" parent="BuildMenu"]
-layout_mode = 2
-text = "Build Tower"
-
 [node name="CountLabel" type="Label" parent="BuildMenu"]
 layout_mode = 2
 text = "Towers: 0/3"

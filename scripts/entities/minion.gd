@@ -1,10 +1,9 @@
 class_name Minion
-extends CharacterBody3D
+extends CombatActor
 ## Lane creep. Marches along waypoints toward the enemy core; if the shared
 ## Targeter finds an enemy in range, it stops to attack on a cooldown. Awards a
 ## bounty to the killer's team on death.
 
-@export var team: Team.Id = Team.Id.A
 @export var move_speed: float = 4.0
 @export var attack_damage: float = 10.0
 @export var attack_cooldown_sec: float = 1.0
@@ -14,10 +13,8 @@ extends CharacterBody3D
 var _path: PackedVector3Array = PackedVector3Array()
 var _path_index: int = 0
 var _attack_timer: float = 0.0
-var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
 @onready var targeter: Targeter = $Targeter
-@onready var health: HealthComponent = $HealthComponent
 @onready var mesh: MeshInstance3D = $Mesh
 
 func _ready() -> void:
@@ -38,6 +35,7 @@ func set_path(points: PackedVector3Array) -> void:
 	_path_index = 0
 
 func _physics_process(delta: float) -> void:
+	tick_slow(delta)
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 
 	var target := targeter.acquire_target()
@@ -78,8 +76,9 @@ func _move_toward(world_pos: Vector3, delta: float) -> void:
 		_stop_horizontal()
 		return
 	dir = dir.normalized()
-	velocity.x = dir.x * move_speed
-	velocity.z = dir.z * move_speed
+	var spd := move_speed * speed_mult()
+	velocity.x = dir.x * spd
+	velocity.z = dir.z * spd
 	_face_toward(world_pos, delta)
 
 func _face_toward(world_pos: Vector3, delta: float) -> void:
@@ -99,9 +98,6 @@ func _try_attack(target: Node) -> void:
 	if target.has_method("take_damage"):
 		_attack_timer = attack_cooldown_sec
 		target.take_damage(attack_damage, self)
-
-func take_damage(amount: float, source: Node = null) -> void:
-	health.take_damage(amount, source)
 
 func _on_died(source: Node) -> void:
 	var killer_team := team

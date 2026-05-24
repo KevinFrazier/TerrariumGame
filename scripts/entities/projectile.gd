@@ -1,11 +1,16 @@
 class_name Projectile
 extends Area3D
 ## Damage projectile reused by heroes and towers. Optionally arcs under gravity.
-## Configure via `setup()` right after instancing, before adding to the tree.
+## Configure via `setup()` (direct shots) or `launch()` (mortar arc) right after
+## instancing, before adding to the tree.
 ##
 ## In `lands_on_ground` mode it ignores units, collides only with the
 ## ground/world, and emits `landed(position)` where it touches down — used by the
 ## hero's tower-throw ability to decide where to build.
+##
+## With `blast_radius > 0` it deals splash damage to every enemy in range on
+## impact (the cannon/mortar AoE). With `detonate_on_ground` it also explodes on
+## terrain, so a lobbed mortar shell still bursts where it lands.
 
 signal landed(position: Vector3)
 
@@ -15,6 +20,13 @@ signal landed(position: Vector3)
 @export var team: Team.Id = Team.Id.NEUTRAL
 @export var affected_by_gravity: bool = false  ## toggle a falling gravity arc
 @export var lands_on_ground: bool = false      ## collide with ground and emit `landed`
+@export var detonate_on_ground: bool = false   ## explode on terrain too (mortar)
+@export var blast_radius: float = 0.0          ## > 0 deals splash damage in range
+@export var splash_falloff: bool = false       ## taper splash damage toward the edge
+@export var slow_factor: float = 0.0           ## speed multiplier applied to hit enemies
+@export var slow_duration_sec: float = 0.0
+
+const EDGE_DAMAGE_FRACTION := 0.3  ## splash damage at the blast edge when falloff is on
 
 var _velocity: Vector3 = Vector3.ZERO
 var _age: float = 0.0
@@ -34,7 +46,10 @@ func _refresh_mask() -> void:
 	else:
 		# Enemy bodies (units, towers, cores) all live on the enemy team layer, so
 		# this never hits the shooter's own structures.
-		collision_mask = Team.enemy_mask(team)
+		var mask := Team.enemy_mask(team)
+		if detonate_on_ground:
+			mask |= Team.LAYER_WORLD | Team.LAYER_GROUND
+		collision_mask = mask
 
 ## team: owner's team. direction: world-space aim (normalized internally).
 ## p_speed >= 0 overrides the launch speed (used by the gravity throw).
@@ -52,6 +67,15 @@ func setup(p_team: Team.Id, direction: Vector3, p_damage: float = -1.0, p_speed:
 	dir = dir.normalized()
 	_velocity = dir * speed
 	_orient(dir)
+
+## Launch with an explicit initial velocity (used by the mortar's ballistic arc,
+## where gravity then curves the shot down onto the target).
+func launch(p_team: Team.Id, velocity: Vector3) -> void:
+	team = p_team
+	_refresh_mask()
+	_velocity = velocity
+	if velocity.length_squared() > 0.0001:
+		_orient(velocity.normalized())
 
 func _physics_process(delta: float) -> void:
 	_age += delta
@@ -88,9 +112,40 @@ func _resolve(target: Node) -> void:
 	if _spent:
 		return
 	_spent = true
-	if target != null and target.has_method("take_damage"):
-		# take_damage(amount, source) — towers/heroes share this convention.
-		target.take_damage(damage, self)
+	if blast_radius > 0.0:
+		_explode()
+	elif target != null and target.has_method("take_damage"):
+		_apply_hit(target, damage)
 	elif lands_on_ground:
 		landed.emit(global_position)
 	queue_free()
+
+## Damage (and optionally slow) a single enemy.
+func _apply_hit(node: Node, amount: float) -> void:
+	if node.has_method("take_damage"):
+		# take_damage(amount, source) — towers/heroes share this convention.
+		node.take_damage(amount, self)
+	if slow_factor > 0.0 and node.has_method("apply_slow"):
+		node.apply_slow(slow_factor, slow_duration_sec)
+
+## Splash damage every enemy within blast_radius of the impact point.
+func _explode() -> void:
+	var space := get_world_3d().direct_space_state
+	var shape := SphereShape3D.new()
+	shape.radius = blast_radius
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.shape = shape
+	params.transform = Transform3D(Basis(), global_position)
+	params.collision_mask = Team.enemy_mask(team)
+	params.collide_with_bodies = true
+	params.collide_with_areas = false
+	for hit in space.intersect_shape(params, 32):
+		var c: Object = hit.get("collider")
+		if c == null or not c.has_method("take_damage"):
+			continue
+		var amount := damage
+		if splash_falloff:
+			var dist := global_position.distance_to((c as Node3D).global_position)
+			var frac := clampf(1.0 - dist / blast_radius, 0.0, 1.0)
+			amount = damage * lerpf(EDGE_DAMAGE_FRACTION, 1.0, frac)
+		_apply_hit(c, amount)

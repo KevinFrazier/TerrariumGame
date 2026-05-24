@@ -25,5 +25,8 @@ func _ready() -> void:
 func take_damage(amount: float, source: Node = null) -> void:
 	health.take_damage(amount, source)
 
+func get_hp() -> float:
+	return health.current_hp
+
 func _on_died(_source: Node) -> void:
 	EventBus.core_destroyed.emit(int(team))
