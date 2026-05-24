@@ -13,7 +13,8 @@ extends Control
 
 signal value_changed(value: Vector2)
 
-@export var dead_zone: float = 0.15
+@export var dead_zone: float = 0.15      ## radial dead zone as a fraction of full deflection
+@export var sensitivity: float = 1.0     ## scales output magnitude (the aim stick lowers this)
 @export var floating: bool = false      ## spawn at the touch point, read input globally
 @export var float_radius: float = 90.0  ## drag radius (px) in floating mode
 
@@ -36,6 +37,10 @@ func _ready() -> void:
 
 func get_value() -> Vector2:
 	return _value
+
+## Runtime-adjustable aim/move sensitivity (1.0 = full deflection maps to full output).
+func set_sensitivity(value: float) -> void:
+	sensitivity = maxf(value, 0.0)
 
 func _radius() -> float:
 	if floating:
@@ -100,18 +105,22 @@ func _begin(pointer: int, pos: Vector2) -> void:
 
 func _drag(pos: Vector2) -> void:
 	var center := _stick_center()
-	var offset := pos - center
 	var r := _radius()
 	if r <= 0.0:
 		return
-	var v := offset / r
-	if v.length() > 1.0:
-		v = v.normalized()
-	if v.length() < dead_zone:
+	var v := (pos - center) / r
+	var mag := v.length()
+	if mag <= dead_zone:
 		v = Vector2.ZERO
-	_value = v
+	else:
+		# Rescale the live range past the dead zone so output ramps 0 -> 1 with no
+		# jump at the dead zone edge.
+		mag = minf(mag, 1.0)
+		var denom := maxf(1.0 - dead_zone, 0.001)
+		v = v.normalized() * ((mag - dead_zone) / denom)
 	if _knob:
 		_knob.position = center + v * r - _knob.size * 0.5
+	_value = v * sensitivity
 	value_changed.emit(_value)
 
 func _release() -> void:

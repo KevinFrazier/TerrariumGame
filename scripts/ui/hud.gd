@@ -32,6 +32,7 @@ func _ready() -> void:
 	melee_button.text = "MELEE"
 	back_button.pressed.connect(_on_back_pressed)
 	tower_button.toggled.connect(_on_tower_toggled)
+	aim_stick.set_sensitivity(GameState.aim_sensitivity)
 	EventBus.currency_changed.connect(_on_currency_changed)
 
 func _on_tower_toggled(pressed: bool) -> void:
