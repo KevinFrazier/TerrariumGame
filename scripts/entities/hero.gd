@@ -16,8 +16,8 @@ extends CharacterBody3D
 @export var projectile_scene: PackedScene = preload("res://scenes/entities/projectile.tscn")
 
 @export_group("Camera Orbit")
-@export var cam_yaw_speed: float = 2.6       ## radians/sec from aim stick x
-@export var cam_pitch_speed: float = 1.8     ## radians/sec from aim stick y
+@export var cam_yaw_speed: float = 3.6       ## radians/sec from aim stick x
+@export var cam_pitch_speed: float = 2.6     ## radians/sec from aim stick y
 @export var cam_pitch_min: float = 0.05      ## near level
 @export var cam_pitch_max: float = 1.5708    ## 90 degrees: straight down
 @export var cam_pitch_start: float = 0.45    ## ~26 degrees, default tilt
@@ -58,7 +58,7 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	_apply_team_tint()
 	_cam_pitch = cam_pitch_start
-	camera_pivot.rotation = Vector3(_cam_pitch, _cam_yaw, 0.0)
+	camera_pivot.rotation = Vector3(-_cam_pitch, _cam_yaw, 0.0)
 	_set_camera_active(controlled)
 
 func _apply_team_tint() -> void:
@@ -145,7 +145,9 @@ func _orbit_camera(aim_in: Vector2, delta: float) -> void:
 	if aim_in.length_squared() > 0.0001:
 		_cam_yaw -= aim_in.x * cam_yaw_speed * delta
 		_cam_pitch = clampf(_cam_pitch + aim_in.y * cam_pitch_speed * delta, cam_pitch_min, cam_pitch_max)
-	camera_pivot.rotation = Vector3(_cam_pitch, _cam_yaw, 0.0)
+	# Negative X rotation tilts the rig downward, so a larger _cam_pitch looks
+	# further down (up to straight down at the floor).
+	camera_pivot.rotation = Vector3(-_cam_pitch, _cam_yaw, 0.0)
 
 func _apply_facing(delta: float) -> void:
 	if _facing.length_squared() < 0.0001:
@@ -158,10 +160,11 @@ func fire() -> void:
 	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null:
 		return
 	_fire_timer = fire_cooldown_sec
-	# Shoot straight along the camera yaw (the direction the hero is facing).
-	var shot_dir := _facing
+	# Shoot along the camera's full look direction, including pitch, so aiming
+	# down sends the shot toward the floor (body yaw still tracks the camera).
+	var shot_dir := -camera.global_transform.basis.z if camera else _facing
 	if shot_dir.length_squared() < 0.0001:
-		shot_dir = -global_transform.basis.z
+		shot_dir = _facing if _facing.length_squared() > 0.0001 else -global_transform.basis.z
 	var p := projectile_scene.instantiate() as Projectile
 	get_tree().current_scene.add_child(p)
 	p.global_position = muzzle.global_position
