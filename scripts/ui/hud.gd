@@ -12,6 +12,7 @@ var _hero: Hero
 @onready var aim_stick: VirtualJoystick = $AimStick
 @onready var fire_button: Button = $Actions/FireButton
 @onready var melee_button: Button = $Actions/MeleeButton
+@onready var tower_button: Button = $Actions/TowerButton
 @onready var health_bar: ProgressBar = $TopBar/HealthBar
 @onready var currency_label: Label = $TopBar/CurrencyLabel
 @onready var team_label: Label = $TopBar/TeamLabel
@@ -26,7 +27,12 @@ func _ready() -> void:
 	fire_button.text = "FIRE"
 	melee_button.text = "MELEE"
 	back_button.pressed.connect(_on_back_pressed)
+	tower_button.toggled.connect(_on_tower_toggled)
 	EventBus.currency_changed.connect(_on_currency_changed)
+
+func _on_tower_toggled(pressed: bool) -> void:
+	if _hero and is_instance_valid(_hero):
+		_hero.set_tower_throw_armed(pressed)
 
 func set_active_hero(hero: Hero) -> void:
 	_hero = hero
@@ -47,6 +53,9 @@ func _process(_delta: float) -> void:
 		_hero.fire()
 	if melee_button.button_pressed:
 		_hero.melee()
+	# Keep the toggle in sync (the hero disarms itself after a throw).
+	if tower_button.button_pressed != _hero.is_tower_throw_armed():
+		tower_button.set_pressed_no_signal(_hero.is_tower_throw_armed())
 
 func _on_currency_changed(team: int, amount: int) -> void:
 	if _hero and int(_hero.team) == team:

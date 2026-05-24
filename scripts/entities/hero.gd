@@ -22,6 +22,11 @@ extends CharacterBody3D
 @export var cam_pitch_max: float = 1.5708    ## +90 degrees: straight down at the floor
 @export var cam_pitch_start: float = 0.45    ## ~26 degrees, default tilt
 
+@export_group("Tower Throw")
+@export var throw_speed: float = 16.0        ## initial launch speed of the build arc
+@export var trajectory_steps: int = 90
+@export var build_tower_definition: TowerDefinition = preload("res://resources/towers/basic_tower.tres")
+
 var controlled: bool = false
 
 # Per-frame intent, written by the HUD (touch) and merged with keyboard below.
@@ -33,6 +38,9 @@ var _cam_yaw := 0.0
 var _cam_pitch := 0.45
 var _fire_timer := 0.0
 var _melee_timer := 0.0
+var _throw_armed := false
+var _trajectory: MeshInstance3D
+var _landing_marker: MeshInstance3D
 var _spawn_transform: Transform3D
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
@@ -59,6 +67,7 @@ func _ready() -> void:
 	_apply_team_tint()
 	_cam_pitch = cam_pitch_start
 	camera_pivot.rotation = Vector3(-_cam_pitch, _cam_yaw, 0.0)
+	_ensure_throw_visuals()
 	_set_camera_active(controlled)
 
 func _apply_team_tint() -> void:
@@ -135,10 +144,17 @@ func _physics_process(delta: float) -> void:
 	_apply_facing(delta)
 
 	if controlled:
+		if Input.is_action_just_pressed("ability_1"):
+			set_tower_throw_armed(not _throw_armed)
 		if Input.is_action_pressed("fire"):
 			fire()
 		if Input.is_action_just_pressed("melee"):
 			melee()
+
+	if _throw_armed:
+		_update_trajectory()
+	else:
+		_hide_trajectory()
 
 # --- camera / facing -------------------------------------------------------
 func _orbit_camera(aim_in: Vector2, delta: float) -> void:
@@ -155,20 +171,125 @@ func _apply_facing(delta: float) -> void:
 	var target_yaw := atan2(_facing.x, _facing.z)
 	body.rotation.y = lerp_angle(body.rotation.y, target_yaw, turn_speed * delta)
 
+## Horizontal-or-vertical world direction the camera is looking along.
+func _look_dir_3d() -> Vector3:
+	if camera:
+		var d := -camera.global_transform.basis.z
+		if d.length_squared() > 0.0001:
+			return d.normalized()
+	return _facing
+
 # --- abilities (also called by HUD buttons) --------------------------------
 func fire() -> void:
+	if _throw_armed:
+		_throw_tower()
+		return
 	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null:
 		return
 	_fire_timer = fire_cooldown_sec
 	# Shoot along the camera's full look direction, including pitch, so aiming
 	# down sends the shot toward the floor (body yaw still tracks the camera).
-	var shot_dir := -camera.global_transform.basis.z if camera else _facing
-	if shot_dir.length_squared() < 0.0001:
-		shot_dir = _facing if _facing.length_squared() > 0.0001 else -global_transform.basis.z
+	var shot_dir := _look_dir_3d()
 	var p := projectile_scene.instantiate() as Projectile
 	get_tree().current_scene.add_child(p)
 	p.global_position = muzzle.global_position
-	p.setup(team, shot_dir.normalized())
+	p.setup(team, shot_dir)
+
+# --- tower throw ability ---------------------------------------------------
+func set_tower_throw_armed(armed: bool) -> void:
+	_throw_armed = armed and controlled and not health.is_dead()
+	if not _throw_armed:
+		_hide_trajectory()
+
+func is_tower_throw_armed() -> bool:
+	return _throw_armed
+
+func _throw_tower() -> void:
+	if _fire_timer > 0.0 or health.is_dead():
+		return
+	var def := build_tower_definition
+	if def == null or projectile_scene == null:
+		return
+	# Reserve the slot + gold at launch so spam-arming can't exceed the cap.
+	if not GameState.can_build_tower(team) or not GameState.can_afford(team, def.cost):
+		set_tower_throw_armed(false)
+		return
+	GameState.spend_currency(team, def.cost)
+	GameState.register_tower(team)
+	_fire_timer = fire_cooldown_sec
+
+	var p := projectile_scene.instantiate() as Projectile
+	p.affected_by_gravity = true
+	p.lands_on_ground = true
+	get_tree().current_scene.add_child(p)
+	p.global_position = muzzle.global_position
+	p.setup(team, _look_dir_3d(), 0.0, throw_speed)
+	p.landed.connect(_on_throw_landed.bind(def, team))
+	set_tower_throw_armed(false)
+
+func _on_throw_landed(position: Vector3, def: TowerDefinition, build_team: Team.Id) -> void:
+	# Slot + gold were already reserved at launch; just place the tower.
+	var spot := Vector3(clampf(position.x, -34.0, 34.0), 0.0, clampf(position.z, -34.0, 34.0))
+	var tower := def.scene.instantiate() as Tower
+	tower.team = build_team
+	tower.definition = def
+	get_tree().current_scene.add_child(tower)
+	tower.global_position = spot
+	EventBus.tower_built.emit(int(build_team), tower)
+
+func _ensure_throw_visuals() -> void:
+	_trajectory = MeshInstance3D.new()
+	_trajectory.top_level = true
+	var line_mat := StandardMaterial3D.new()
+	line_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	line_mat.albedo_color = Color(0.4, 1.0, 0.55)
+	line_mat.no_depth_test = true
+	_trajectory.material_override = line_mat
+	_trajectory.visible = false
+	add_child(_trajectory)
+
+	_landing_marker = MeshInstance3D.new()
+	_landing_marker.top_level = true
+	var disc := CylinderMesh.new()
+	disc.top_radius = 1.0
+	disc.bottom_radius = 1.0
+	disc.height = 0.1
+	_landing_marker.mesh = disc
+	var disc_mat := StandardMaterial3D.new()
+	disc_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	disc_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	disc_mat.albedo_color = Color(0.4, 1.0, 0.55, 0.5)
+	_landing_marker.material_override = disc_mat
+	_landing_marker.visible = false
+	add_child(_landing_marker)
+
+func _update_trajectory() -> void:
+	if _trajectory == null:
+		return
+	var start := muzzle.global_position
+	var v := _look_dir_3d() * throw_speed
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	var landing := start
+	var t := 0.0
+	for i in trajectory_steps:
+		var pt := start + v * t + Vector3(0.0, -0.5 * _gravity * t * t, 0.0)
+		im.surface_add_vertex(pt)
+		landing = pt
+		if pt.y <= 0.0 and i > 0:
+			break
+		t += 0.06
+	im.surface_end()
+	_trajectory.mesh = im
+	_trajectory.visible = true
+	_landing_marker.global_position = Vector3(landing.x, 0.06, landing.z)
+	_landing_marker.visible = true
+
+func _hide_trajectory() -> void:
+	if _trajectory:
+		_trajectory.visible = false
+	if _landing_marker:
+		_landing_marker.visible = false
 
 func melee() -> void:
 	if _melee_timer > 0.0 or health.is_dead():
@@ -190,6 +311,7 @@ func take_damage(amount: float, source: Node = null) -> void:
 
 func _on_died(_source: Node) -> void:
 	EventBus.hero_died.emit(int(team), self)
+	set_tower_throw_armed(false)
 	_set_dead_visual(true)
 	await get_tree().create_timer(respawn_delay_sec).timeout
 	if is_instance_valid(self):
