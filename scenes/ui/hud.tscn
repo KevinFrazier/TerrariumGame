@@ -68,28 +68,27 @@ offset_bottom = 70.0
 mouse_filter = 2
 
 [node name="AimStick" type="Control" parent="."]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -220.0
-offset_top = -220.0
-offset_right = -40.0
-offset_bottom = -40.0
-mouse_filter = 0
-script = ExtResource("2_stick")
-
-[node name="Base" type="Panel" parent="AimStick"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+script = ExtResource("2_stick")
+floating = true
+float_radius = 90.0
+
+[node name="Base" type="Panel" parent="AimStick"]
+custom_minimum_size = Vector2(180, 180)
+offset_right = 180.0
+offset_bottom = 180.0
+mouse_filter = 2
 modulate = Color(1, 1, 1, 0.4)
+visible = false
 
 [node name="Knob" type="Panel" parent="AimStick"]
 custom_minimum_size = Vector2(70, 70)
 offset_right = 70.0
 offset_bottom = 70.0
 mouse_filter = 2
+visible = false
 
 [node name="Actions" type="VBoxContainer" parent="."]
 anchor_left = 1.0
