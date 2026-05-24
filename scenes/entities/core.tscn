@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3 uid="uid://ccore0terrarium01"]
+
+[ext_resource type="Script" path="res://scripts/entities/core.gd" id="1_core"]
+[ext_resource type="Script" path="res://scripts/systems/health_component.gd" id="2_health"]
+
+[sub_resource type="BoxShape3D" id="Shape_core"]
+size = Vector3(3, 4, 3)
+
+[sub_resource type="BoxMesh" id="Mesh_core"]
+size = Vector3(3, 4, 3)
+
+[node name="Core" type="StaticBody3D"]
+script = ExtResource("1_core")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+mesh = SubResource("Mesh_core")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+shape = SubResource("Shape_core")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+max_hp = 500.0

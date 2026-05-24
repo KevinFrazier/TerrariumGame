@@ -1,0 +1,80 @@
+[gd_scene load_steps=12 format=3 uid="uid://carena0terrarium1"]
+
+[ext_resource type="Script" path="res://scripts/main/arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://scenes/entities/core.tscn" id="2_core"]
+[ext_resource type="PackedScene" path="res://scenes/entities/hero.tscn" id="3_hero"]
+[ext_resource type="Script" path="res://scripts/systems/wave_spawner.gd" id="4_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="5_hud"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
+sky_horizon_color = Color(0.55, 0.6, 0.67, 1)
+ground_horizon_color = Color(0.55, 0.6, 0.67, 1)
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("SkyMat")
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 3
+ambient_light_energy = 0.6
+
+[sub_resource type="StandardMaterial3D" id="GroundMat"]
+albedo_color = Color(0.27, 0.36, 0.27, 1)
+
+[sub_resource type="BoxMesh" id="GroundMesh"]
+size = Vector3(70, 1, 70)
+
+[sub_resource type="BoxShape3D" id="GroundShape"]
+size = Vector3(70, 1, 70)
+
+[node name="Arena" type="Node3D"]
+script = ExtResource("1_arena")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766044, -0.413176, 0.492404, 0, 0.766044, 0.642788, -0.642788, -0.492404, 0.586824, 0, 25, 0)
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 3
+collision_mask = 0
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("GroundMesh")
+material_override = SubResource("GroundMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("GroundShape")
+
+[node name="CoreA" parent="." instance=ExtResource("2_core")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -28)
+team = 0
+
+[node name="CoreB" parent="." instance=ExtResource("2_core")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 28)
+team = 1
+
+[node name="HeroA" parent="." instance=ExtResource("3_hero")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -24)
+team = 0
+
+[node name="HeroB" parent="." instance=ExtResource("3_hero")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 24)
+team = 1
+
+[node name="SpawnerA" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -26)
+script = ExtResource("4_spawner")
+team = 0
+
+[node name="SpawnerB" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 26)
+script = ExtResource("4_spawner")
+team = 1
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]

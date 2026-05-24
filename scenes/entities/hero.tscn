@@ -1,0 +1,73 @@
+[gd_scene load_steps=9 format=3 uid="uid://chero0terrarium01"]
+
+[ext_resource type="Script" path="res://scripts/entities/hero.gd" id="1_hero"]
+[ext_resource type="Script" path="res://scripts/systems/targeter.gd" id="2_targeter"]
+[ext_resource type="Script" path="res://scripts/systems/health_component.gd" id="3_health"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_body"]
+radius = 0.5
+height = 2.0
+
+[sub_resource type="CapsuleMesh" id="Mesh_body"]
+radius = 0.5
+height = 2.0
+
+[sub_resource type="BoxShape3D" id="Shape_melee"]
+size = Vector3(1.6, 1.6, 1.8)
+
+[sub_resource type="SphereShape3D" id="Shape_aggro"]
+radius = 13.0
+
+[sub_resource type="BoxMesh" id="Mesh_muzzle"]
+size = Vector3(0.2, 0.2, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="Mat_muzzle"]
+albedo_color = Color(0.15, 0.15, 0.15, 1)
+
+[node name="Hero" type="CharacterBody3D"]
+script = ExtResource("1_hero")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("Shape_body")
+
+[node name="Body" type="Node3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("Mesh_body")
+
+[node name="Muzzle" type="Marker3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -0.9)
+
+[node name="MuzzleMarker" type="MeshInstance3D" parent="Body/Muzzle"]
+mesh = SubResource("Mesh_muzzle")
+material_override = SubResource("Mat_muzzle")
+
+[node name="MeleeArea" type="Area3D" parent="Body"]
+monitoring = true
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Body/MeleeArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -1.1)
+shape = SubResource("Shape_melee")
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.906308, 0.422618, 0, -0.422618, 0.906308, 0, 1.5, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
+spring_length = 9.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+
+[node name="Targeter" type="Area3D" parent="."]
+script = ExtResource("2_targeter")
+detection_radius = 13.0
+
+[node name="Shape" type="CollisionShape3D" parent="Targeter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("Shape_aggro")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+max_hp = 200.0

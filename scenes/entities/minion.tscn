@@ -1,0 +1,39 @@
+[gd_scene load_steps=7 format=3 uid="uid://cminion0terrarium1"]
+
+[ext_resource type="Script" path="res://scripts/entities/minion.gd" id="1_minion"]
+[ext_resource type="Script" path="res://scripts/systems/targeter.gd" id="2_targeter"]
+[ext_resource type="Script" path="res://scripts/systems/health_component.gd" id="3_health"]
+
+[sub_resource type="CapsuleShape3D" id="Shape_minion"]
+radius = 0.35
+height = 1.2
+
+[sub_resource type="CapsuleMesh" id="Mesh_minion"]
+radius = 0.35
+height = 1.2
+
+[sub_resource type="SphereShape3D" id="Shape_aggro_m"]
+radius = 6.4
+
+[node name="Minion" type="CharacterBody3D"]
+script = ExtResource("1_minion")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("Mesh_minion")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("Shape_minion")
+
+[node name="Targeter" type="Area3D" parent="."]
+script = ExtResource("2_targeter")
+detection_radius = 6.4
+
+[node name="Shape" type="CollisionShape3D" parent="Targeter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("Shape_aggro_m")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+max_hp = 60.0
