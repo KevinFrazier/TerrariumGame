@@ -21,6 +21,7 @@ extends CharacterBody3D
 @export var cam_pitch_min: float = -1.5708   ## -90 degrees: straight up at the sky
 @export var cam_pitch_max: float = 1.5708    ## +90 degrees: straight down at the floor
 @export var cam_pitch_start: float = 0.45    ## ~26 degrees, default tilt
+@export var cam_shoulder_offset: float = 0.6 ## shift the camera right so the character isn't centered
 
 @export_group("Tower Throw")
 @export var throw_speed: float = 16.0        ## initial launch speed of the build arc
@@ -45,6 +46,7 @@ var _spawn_transform: Transform3D
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
 @onready var camera_pivot: Node3D = $CameraPivot
+@onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
 @onready var body: Node3D = $Body
 @onready var mesh: MeshInstance3D = $Body/Mesh
@@ -67,6 +69,9 @@ func _ready() -> void:
 	_apply_team_tint()
 	_cam_pitch = cam_pitch_start
 	camera_pivot.rotation = Vector3(-_cam_pitch, _cam_yaw, 0.0)
+	# Over-the-shoulder: offset the arm sideways (rotates with the camera yaw) so
+	# the character sits left of center and its front is visible.
+	spring_arm.position.x = cam_shoulder_offset
 	_ensure_throw_visuals()
 	_set_camera_active(controlled)
 
