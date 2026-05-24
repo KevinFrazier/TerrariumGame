@@ -19,7 +19,7 @@ extends CharacterBody3D
 @export var cam_yaw_speed: float = 2.6       ## radians/sec from aim stick x
 @export var cam_pitch_speed: float = 1.8     ## radians/sec from aim stick y
 @export var cam_pitch_min: float = 0.05      ## near level
-@export var cam_pitch_max: float = 1.2       ## steep top-down
+@export var cam_pitch_max: float = 1.5708    ## 90 degrees: straight down
 @export var cam_pitch_start: float = 0.45    ## ~26 degrees, default tilt
 
 var controlled: bool = false
@@ -107,16 +107,16 @@ func _physics_process(delta: float) -> void:
 	# Right stick orbits the camera around the hero (yaw + pitch).
 	_orbit_camera(aim_in, delta)
 
-	# Movement is relative to the (now updated) camera orientation. The camera
-	# looks down its local -Z, so "into screen" is -basis.z; the stick's y is
-	# negative for forward, making basis.z * y resolve to into-screen movement.
+	# Movement + aim are relative to the camera's yaw. We derive a horizontal
+	# forward from the (always-horizontal) right axis via a cross product, so it
+	# stays valid even when the camera pitches straight down (where basis.z would
+	# flatten to zero). cam_forward points out of screen; -cam_forward is "into
+	# screen", which is both forward movement and the gun aim direction.
 	var basis_xform := camera.global_transform.basis if camera else global_transform.basis
-	var cam_forward := basis_xform.z
-	cam_forward.y = 0.0
-	cam_forward = cam_forward.normalized()
 	var cam_right := basis_xform.x
 	cam_right.y = 0.0
 	cam_right = cam_right.normalized()
+	var cam_forward := cam_right.cross(Vector3.UP)
 
 	var move_dir := cam_right * move_in.x + cam_forward * move_in.y
 	if move_dir.length() > 1.0:
@@ -130,9 +130,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	move_and_slide()
 
-	# Hero faces its movement direction (firing temporarily overrides this).
-	if move_dir.length_squared() > 0.01:
-		_facing = move_dir.normalized()
+	# Gun aim follows the camera yaw: the hero faces where the camera looks.
+	_facing = -cam_forward
 	_apply_facing(delta)
 
 	if controlled:
@@ -154,34 +153,19 @@ func _apply_facing(delta: float) -> void:
 	var target_yaw := atan2(_facing.x, _facing.z)
 	body.rotation.y = lerp_angle(body.rotation.y, target_yaw, turn_speed * delta)
 
-## Horizontal direction the camera is looking, used as the default aim.
-func _camera_look_dir() -> Vector3:
-	if camera == null:
-		return _facing
-	var look := -camera.global_transform.basis.z
-	look.y = 0.0
-	if look.length_squared() < 0.0001:
-		return _facing
-	return look.normalized()
-
 # --- abilities (also called by HUD buttons) --------------------------------
 func fire() -> void:
 	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null:
 		return
 	_fire_timer = fire_cooldown_sec
-	var look := _camera_look_dir()
-	var shot_dir := look
-	var target := targeter.nearest_in_direction(look)
-	if target != null:
-		var to_target := target.global_position - muzzle.global_position
-		to_target.y = 0.0
-		if to_target.length_squared() > 0.001:
-			shot_dir = to_target.normalized()
-	_facing = shot_dir  # turn to face the shot
+	# Shoot straight along the camera yaw (the direction the hero is facing).
+	var shot_dir := _facing
+	if shot_dir.length_squared() < 0.0001:
+		shot_dir = -global_transform.basis.z
 	var p := projectile_scene.instantiate() as Projectile
 	get_tree().current_scene.add_child(p)
 	p.global_position = muzzle.global_position
-	p.setup(team, shot_dir)
+	p.setup(team, shot_dir.normalized())
 
 func melee() -> void:
 	if _melee_timer > 0.0 or health.is_dead():
