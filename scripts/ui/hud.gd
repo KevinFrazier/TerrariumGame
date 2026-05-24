@@ -5,6 +5,7 @@ extends CanvasLayer
 ## overlay. Feeds stick values into the active hero each frame.
 
 const LOBBY_SCENE := "res://scenes/ui/lobby.tscn"
+const TOWER_INSPECT_RANGE := 7.0  ## how close the hero must be to inspect a tower
 
 var _hero: Hero
 
@@ -17,6 +18,9 @@ var _hero: Hero
 @onready var currency_label: Label = $TopBar/CurrencyLabel
 @onready var team_label: Label = $TopBar/TeamLabel
 @onready var build_menu: BuildMenu = $BuildMenu
+@onready var tower_info: PanelContainer = $TowerInfo
+@onready var tower_info_name: Label = $TowerInfo/Margin/VBox/NameLabel
+@onready var tower_info_details: Label = $TowerInfo/Margin/VBox/DetailsLabel
 @onready var result_panel: Panel = $ResultPanel
 @onready var result_label: Label = $ResultPanel/VBox/ResultLabel
 @onready var back_button: Button = $ResultPanel/VBox/BackButton
@@ -56,6 +60,42 @@ func _process(_delta: float) -> void:
 	# Keep the toggle in sync (the hero disarms itself after a throw).
 	if tower_button.button_pressed != _hero.is_tower_throw_armed():
 		tower_button.set_pressed_no_signal(_hero.is_tower_throw_armed())
+	_update_tower_info()
+
+## Show stats for the nearest tower the hero is standing close to (any team).
+func _update_tower_info() -> void:
+	var nearest: Tower = null
+	var best := TOWER_INSPECT_RANGE
+	for t in get_tree().get_nodes_in_group("towers"):
+		var tower := t as Tower
+		if tower == null or not is_instance_valid(tower):
+			continue
+		var d := _hero.global_position.distance_to(tower.global_position)
+		if d <= best:
+			best = d
+			nearest = tower
+	if nearest == null:
+		tower_info.visible = false
+		return
+	_populate_tower_info(nearest)
+	tower_info.visible = true
+
+func _populate_tower_info(tower: Tower) -> void:
+	var def := tower.definition
+	tower_info_name.text = def.display_name if def else "Tower"
+	tower_info_name.modulate = Team.body_color(tower.team)
+	var lines: Array[String] = []
+	lines.append("Owner: %s" % Team.display_name(tower.team))
+	lines.append("HP: %d / %d" % [roundi(tower.health.current_hp), roundi(tower.health.max_hp)])
+	if def:
+		lines.append("Range: %.0f" % def.attack_range)
+		lines.append("Damage: %.0f" % def.damage)
+		lines.append("Fire rate: %.2f/s" % def.fire_rate_per_sec)
+		if def.blast_radius > 0.0:
+			lines.append("Blast radius: %.0f" % def.blast_radius)
+		if def.slow_factor > 0.0:
+			lines.append("Slow: %d%% for %.1fs" % [roundi((1.0 - def.slow_factor) * 100.0), def.slow_duration_sec])
+	tower_info_details.text = "\n".join(lines)
 
 func _on_currency_changed(team: int, amount: int) -> void:
 	if _hero and int(_hero.team) == team:
