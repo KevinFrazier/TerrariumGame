@@ -29,6 +29,13 @@ extends CombatActor
 @export var buff_duration_sec: float = 5.0
 @export var buff_cooldown_sec: float = 12.0
 
+@export_group("Spawn Buffs")
+## On (re)spawn the hero gets all three buffs at once for a brief window.
+@export var spawn_buff_duration_sec: float = 5.0
+@export var spawn_attack_mult: float = 1.5
+@export var spawn_damage_reduction: float = 0.5
+@export var spawn_speed_mult: float = 1.4
+
 @export_group("Leveling")
 @export var xp_reward: int = 100               ## XP a killer gains for last-hitting this hero
 @export var base_xp_to_level: float = 100.0
@@ -117,6 +124,13 @@ func _ready() -> void:
 	_ensure_throw_visuals()
 	_ensure_buff_aura()
 	_set_camera_active(controlled)
+	_apply_spawn_buffs()
+
+## Empower the hero with every buff for a short window when it (re)spawns.
+func _apply_spawn_buffs() -> void:
+	apply_attack_buff(spawn_attack_mult, spawn_buff_duration_sec)
+	apply_damage_reduction(spawn_damage_reduction, spawn_buff_duration_sec)
+	apply_speed_buff(spawn_speed_mult, spawn_buff_duration_sec)
 
 func _apply_definition() -> void:
 	if definition == null:
@@ -539,4 +553,5 @@ func _respawn() -> void:
 	global_transform = _spawn_transform
 	health.revive()
 	_set_dead_visual(false)
+	_apply_spawn_buffs()
 	EventBus.hero_respawned.emit(int(team), self)
