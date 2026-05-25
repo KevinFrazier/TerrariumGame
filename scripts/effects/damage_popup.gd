@@ -9,15 +9,17 @@ extends Label3D
 
 var _age: float = 0.0
 var _vel: Vector3 = Vector3.ZERO
+var _scale: float = 1.0
 
 ## Spawns a popup into `world_parent` (use the current scene so it outlives the
-## victim) at `world_pos`, showing `amount`.
-static func spawn(world_parent: Node, world_pos: Vector3, amount: float, color: Color = Color(1, 0.95, 0.4)) -> void:
+## victim) at `world_pos`, showing `amount`. `scale` punches up big hits.
+static func spawn(world_parent: Node, world_pos: Vector3, amount: float, color: Color = Color(1, 0.95, 0.4), scale: float = 1.0) -> void:
 	if world_parent == null:
 		return
 	var popup := DamagePopup.new()
 	popup.text = str(roundi(amount))
 	popup.modulate = color
+	popup._scale = scale
 	world_parent.add_child(popup)
 	popup.global_position = world_pos + Vector3(randf_range(-0.4, 0.4), 0.0, randf_range(-0.4, 0.4))
 
@@ -25,7 +27,7 @@ func _ready() -> void:
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	no_depth_test = true
 	fixed_size = true
-	font_size = 48
+	font_size = int(48 * _scale)
 	outline_size = 12
 	outline_modulate = Color(0, 0, 0, 0.9)
 	render_priority = 10
@@ -34,6 +36,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_age += delta
 	global_position += _vel * delta
-	modulate.a = clampf(1.0 - _age / lifetime_sec, 0.0, 1.0)
+	# Quick overshoot "pop" on spawn, then settle.
+	var t := _age / lifetime_sec
+	var pop := 1.0 + 0.35 * maxf(1.0 - t * 6.0, 0.0)
+	pixel_size = 0.005 * pop
+	modulate.a = clampf(1.0 - t, 0.0, 1.0)
 	if _age >= lifetime_sec:
 		queue_free()

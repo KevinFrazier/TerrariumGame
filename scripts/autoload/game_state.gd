@@ -12,8 +12,12 @@ var selected_tower: TowerDefinition          ## Tower type the build menu/throw 
 var target_priority: Targeter.Priority = Targeter.Priority.NEAREST  ## Targeting preference for newly built towers.
 var aim_sensitivity: float = 0.5             ## Aim stick sensitivity; 1.0 = full, 0.5 = half (default).
 
+## Hero archetype chosen per team in the lobby; the arena applies it on spawn.
+var hero_defs := {Team.Id.A: null, Team.Id.B: null}
+
 var _currency := {Team.Id.A: 0, Team.Id.B: 0}
 var _tower_count := {Team.Id.A: 0, Team.Id.B: 0}
+var _team_level := {Team.Id.A: 1, Team.Id.B: 1}  ## hero level per team; minions scale off it
 
 func reset_match() -> void:
 	winner = Team.Id.NEUTRAL
@@ -21,6 +25,13 @@ func reset_match() -> void:
 	for t in [Team.Id.A, Team.Id.B]:
 		_currency[t] = STARTING_CURRENCY
 		_tower_count[t] = 0
+		_team_level[t] = 1
+
+func get_team_level(team: Team.Id) -> int:
+	return _team_level.get(team, 1)
+
+func set_team_level(team: Team.Id, level: int) -> void:
+	_team_level[team] = maxi(level, 1)
 
 func get_currency(team: Team.Id) -> int:
 	return _currency.get(team, 0)

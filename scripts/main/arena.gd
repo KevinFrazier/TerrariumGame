@@ -138,4 +138,10 @@ func _on_core_destroyed(team: int) -> void:
 	spawner_a.stop()
 	spawner_b.stop()
 	EventBus.match_ended.emit(int(winner))
+	var dead_core := core_a if (team as Team.Id) == Team.Id.A else core_b
+	Juice.burst(self, dead_core.global_position + Vector3.UP, Team.body_color(team as Team.Id), 6.0, 0.8)
+	# Brief slow-motion punctuates the kill before the result screen.
+	Engine.time_scale = 0.3
+	await get_tree().create_timer(1.0, true, false, true).timeout
+	Engine.time_scale = 1.0
 	hud.show_match_result(winner)

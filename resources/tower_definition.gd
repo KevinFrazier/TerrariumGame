@@ -27,5 +27,19 @@ extends Resource
 @export var slow_factor: float = 0.0
 @export var slow_duration_sec: float = 0.0
 
+@export_group("Status Effect")
+## When enabled, hits apply `status_effect` to the (CombatActor) target.
+@export var applies_status: bool = false
+@export var status_effect: CombatActor.Status = CombatActor.Status.BURN
+## Effect strength — meaning depends on the effect (burn=dps, vulnerable=mult,
+## chill=stacks, weaken=mult, knockback=impulse; ignored for stun/root/silence).
+@export var status_magnitude: float = 6.0
+@export var status_duration_sec: float = 3.0
+
 @export_group("Targeting")
 @export var targeting_priority: Targeter.Priority = Targeter.Priority.NEAREST
+
+@export_group("Upgrade")
+## Next-tier definition this tower upgrades into (null = max tier).
+@export var upgrade: TowerDefinition
+@export var upgrade_cost: int = 0

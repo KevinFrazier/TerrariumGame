@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="TowerDefinition" load_steps=3 format=3 uid="uid://ccannontowerres1"]
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=4 format=3 uid="uid://ccannontowerres1"]
 
 [ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
 [ext_resource type="PackedScene" uid="uid://ccannontower0001" path="res://scenes/entities/towers/cannon_tower.tscn" id="2_scene"]
+[ext_resource type="Resource" uid="uid://ccannontowerres2" path="res://resources/towers/cannon_tower_2.tres" id="3_upgrade"]
 
 [resource]
 script = ExtResource("1_def")
@@ -15,3 +16,9 @@ scene = ExtResource("2_scene")
 projectile_speed = 22.0
 blast_radius = 4.0
 splash_falloff = true
+applies_status = true
+status_effect = 1
+status_magnitude = 8.0
+status_duration_sec = 3.0
+upgrade = ExtResource("3_upgrade")
+upgrade_cost = 160

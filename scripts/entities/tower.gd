@@ -22,6 +22,10 @@ var _blast_radius: float = 0.0
 var _splash_falloff: bool = false
 var _slow_factor: float = 0.0
 var _slow_duration: float = 0.0
+var _applies_status: bool = false
+var _status_effect: CombatActor.Status = CombatActor.Status.BURN
+var _status_magnitude: float = 0.0
+var _status_duration: float = 0.0
 var _gravity_lob: bool = false
 var _priority: Targeter.Priority = Targeter.Priority.NEAREST
 var _proj_scene: PackedScene
@@ -68,6 +72,10 @@ func _apply_definition() -> void:
 	_splash_falloff = definition.splash_falloff
 	_slow_factor = definition.slow_factor
 	_slow_duration = definition.slow_duration_sec
+	_applies_status = definition.applies_status
+	_status_effect = definition.status_effect
+	_status_magnitude = definition.status_magnitude
+	_status_duration = definition.status_duration_sec
 	_gravity_lob = definition.projectile_gravity
 	_priority = definition.targeting_priority
 	if definition.projectile_scene != null:
@@ -145,6 +153,11 @@ func _fire_at(target: Node3D) -> void:
 	p.splash_falloff = _splash_falloff
 	p.slow_factor = _slow_factor
 	p.slow_duration_sec = _slow_duration
+	p.applies_status = _applies_status
+	p.status_effect = _status_effect
+	p.status_magnitude = _status_magnitude
+	p.status_duration_sec = _status_duration
+	p.owner_unit = self
 	if _gravity_lob:
 		p.affected_by_gravity = true
 		p.detonate_on_ground = true
@@ -178,10 +191,36 @@ func _play_fire_av() -> void:
 		_anim.play("fire")
 	if _fire_sound != null and _fire_sound.stream != null:
 		_fire_sound.play()
+	Juice.muzzle_flash(get_tree().current_scene, muzzle.global_position, Team.body_color(team).lightened(0.3))
 
 ## Override the targeting preference (e.g. from the build menu) after spawning.
 func set_targeting_priority(p: Targeter.Priority) -> void:
 	_priority = p
+
+# --- upgrades --------------------------------------------------------------
+func can_upgrade() -> bool:
+	return definition != null and definition.upgrade != null
+
+func get_upgrade_cost() -> int:
+	return definition.upgrade_cost if can_upgrade() else 0
+
+## Swap to the next-tier definition if the owner can afford it. Returns success.
+func try_upgrade() -> bool:
+	if not can_upgrade() or not GameState.spend_currency(team, definition.upgrade_cost):
+		return false
+	definition = definition.upgrade
+	_apply_definition()
+	_rebuild_range_ring()
+	# Tier-up flourish + a small permanent size bump so upgrades read at a glance.
+	scale *= 1.08
+	Juice.ring(get_tree().current_scene, global_position, Team.body_color(team).lightened(0.3), 2.6, 0.45)
+	return true
+
+func _rebuild_range_ring() -> void:
+	if _range_ring and is_instance_valid(_range_ring):
+		_range_ring.queue_free()
+		_range_ring = null
+	_build_range_ring()
 
 func take_damage(amount: float, source: Node = null) -> void:
 	health.take_damage(amount, source)

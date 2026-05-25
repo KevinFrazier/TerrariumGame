@@ -25,6 +25,14 @@ signal landed(position: Vector3)
 @export var splash_falloff: bool = false       ## taper splash damage toward the edge
 @export var slow_factor: float = 0.0           ## speed multiplier applied to hit enemies
 @export var slow_duration_sec: float = 0.0
+@export var applies_status: bool = false       ## apply a status effect on hit
+@export var status_effect: CombatActor.Status = CombatActor.Status.BURN
+@export var status_magnitude: float = 0.0
+@export var status_duration_sec: float = 0.0
+
+## The unit that fired this shot (hero or tower). Used as the damage source so
+## last-hit kill credit (XP, bounty) flows to it rather than the projectile.
+var owner_unit: Node = null
 
 const EDGE_DAMAGE_FRACTION := 0.3  ## splash damage at the blast edge when falloff is on
 
@@ -38,6 +46,34 @@ func _ready() -> void:
 	_refresh_mask()
 	body_entered.connect(_on_hit)
 	area_entered.connect(_on_area_hit)
+	if not lands_on_ground:
+		_add_trail()
+
+## A short comet trail of fading sparks behind the shot.
+func _add_trail() -> void:
+	var p := CPUParticles3D.new()
+	p.local_coords = false
+	p.amount = 16
+	p.lifetime = 0.35
+	p.speed_scale = 1.0
+	p.direction = Vector3.ZERO
+	p.spread = 0.0
+	p.initial_velocity_min = 0.0
+	p.initial_velocity_max = 0.0
+	p.scale_amount_min = 0.18
+	p.scale_amount_max = 0.28
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	p.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.9, 0.5, 0.7)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.8, 0.4)
+	p.mesh.surface_set_material(0, mat)
+	add_child(p)
 
 func _refresh_mask() -> void:
 	if lands_on_ground:
@@ -112,21 +148,27 @@ func _resolve(target: Node) -> void:
 	if _spent:
 		return
 	_spent = true
+	var scene := get_tree().current_scene
 	if blast_radius > 0.0:
 		_explode()
+		Juice.burst(scene, global_position, Color(1.0, 0.65, 0.2), blast_radius, 0.4)
 	elif target != null and target.has_method("take_damage"):
 		_apply_hit(target, damage)
+		Juice.burst(scene, global_position, Color(1.0, 0.85, 0.4), 0.9, 0.2)
 	elif lands_on_ground:
 		landed.emit(global_position)
 	queue_free()
 
-## Damage (and optionally slow) a single enemy.
+## Damage (and optionally slow / apply a status to) a single enemy.
 func _apply_hit(node: Node, amount: float) -> void:
 	if node.has_method("take_damage"):
 		# take_damage(amount, source) — towers/heroes share this convention.
-		node.take_damage(amount, self)
+		# Credit the firing unit (not the projectile) so kill rewards attribute right.
+		node.take_damage(amount, owner_unit if owner_unit != null else self)
 	if slow_factor > 0.0 and node.has_method("apply_slow"):
 		node.apply_slow(slow_factor, slow_duration_sec)
+	if applies_status and node.has_method("apply_status"):
+		node.apply_status(status_effect, status_magnitude, status_duration_sec)
 
 ## Splash damage every enemy within blast_radius of the impact point.
 func _explode() -> void:

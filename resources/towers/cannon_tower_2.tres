@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=3 format=3 uid="uid://ccannontowerres2"]
+
+[ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" uid="uid://ccannontower0001" path="res://scenes/entities/towers/cannon_tower.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Cannon Tower II"
+cost = 120
+damage = 44.0
+attack_range = 14.0
+fire_rate_per_sec = 0.8
+max_hp = 270.0
+scene = ExtResource("2_scene")
+projectile_speed = 24.0
+blast_radius = 5.0
+splash_falloff = true
+applies_status = true
+status_effect = 1
+status_magnitude = 12.0
+status_duration_sec = 3.0

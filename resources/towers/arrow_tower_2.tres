@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=3 format=3 uid="uid://carrowtower00002"]
+
+[ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" uid="uid://carrowtower00001" path="res://scenes/entities/towers/arrow_tower.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Arrow Tower II"
+cost = 60
+damage = 24.0
+attack_range = 13.0
+fire_rate_per_sec = 2.1
+max_hp = 220.0
+scene = ExtResource("2_scene")
+projectile_speed = 34.0

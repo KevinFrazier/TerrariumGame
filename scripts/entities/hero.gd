@@ -6,6 +6,10 @@ extends CombatActor
 ## enemy via the shared Targeter). Only the `controlled` hero reads input and
 ## owns the camera.
 
+## Class archetype (Warrior/Mage/Archer). When unset, the hero pulls its class
+## from GameState (chosen in the lobby), then falls back to the exports below.
+@export var definition: HeroDefinition
+
 @export var move_speed: float = 7.0
 @export var turn_speed: float = 12.0
 @export var fire_cooldown_sec: float = 0.45
@@ -13,6 +17,27 @@ extends CombatActor
 @export var melee_damage: float = 25.0
 @export var respawn_delay_sec: float = 4.0
 @export var projectile_scene: PackedScene = preload("res://scenes/entities/projectile.tscn")
+
+@export_group("Projectile")
+@export var projectile_damage: float = 18.0
+@export var projectile_speed: float = 28.0
+@export var projectile_blast_radius: float = 0.0
+
+@export_group("Buff Ability")
+@export var buff_kind: HeroDefinition.BuffKind = HeroDefinition.BuffKind.DAMAGE_REDUCTION
+@export var buff_magnitude: float = 0.5
+@export var buff_duration_sec: float = 5.0
+@export var buff_cooldown_sec: float = 12.0
+
+@export_group("Leveling")
+@export var xp_reward: int = 100               ## XP a killer gains for last-hitting this hero
+@export var base_xp_to_level: float = 100.0
+@export var xp_curve_growth: float = 1.35      ## each level costs this much more XP
+## Per-level stat growth weights (fraction of base added per level). Tunable.
+@export var melee_growth_per_level: float = 0.08
+@export var projectile_growth_per_level: float = 0.08
+@export var max_hp_growth_per_level: float = 0.10
+@export var buff_growth_per_level: float = 0.05
 
 @export_group("Camera Orbit")
 @export var cam_yaw_speed: float = 3.6       ## radians/sec from aim stick x
@@ -39,11 +64,22 @@ var _cam_yaw := 0.0
 var _cam_pitch := 0.45
 var _fire_timer := 0.0
 var _melee_timer := 0.0
+var _buff_cd := 0.0
 var _throw_armed := false
 var _respawn_countdown: SceneTreeTimer
 var _trajectory: MeshInstance3D
 var _landing_marker: MeshInstance3D
 var _spawn_transform: Transform3D
+
+# Leveling state + the base stats level scaling multiplies from.
+var _level := 1
+var _xp := 0.0
+var _base_melee := 25.0
+var _base_projectile_damage := 18.0
+var _base_max_hp := 200.0
+
+var _shake := 0.0
+var _buff_aura: MeshInstance3D
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
@@ -64,7 +100,14 @@ func _ready() -> void:
 	melee_area.collision_layer = 0
 	melee_area.collision_mask = Team.enemy_mask(team)
 	melee_area.monitoring = true
+	if definition == null:
+		definition = GameState.hero_defs.get(team) as HeroDefinition
+	_apply_definition()
+	_base_melee = melee_damage
+	_base_projectile_damage = projectile_damage
+	_base_max_hp = health.max_hp
 	health.died.connect(_on_died)
+	health.damaged.connect(_on_damaged)
 	_apply_team_tint()
 	_cam_pitch = cam_pitch_start
 	camera_pivot.rotation = Vector3(-_cam_pitch, _cam_yaw, 0.0)
@@ -72,7 +115,26 @@ func _ready() -> void:
 	# the character sits left of center and its front is visible.
 	spring_arm.position.x = cam_shoulder_offset
 	_ensure_throw_visuals()
+	_ensure_buff_aura()
 	_set_camera_active(controlled)
+
+func _apply_definition() -> void:
+	if definition == null:
+		return
+	move_speed = definition.move_speed
+	fire_cooldown_sec = definition.fire_cooldown_sec
+	melee_damage = definition.melee_damage
+	projectile_damage = definition.projectile_damage
+	projectile_speed = definition.projectile_speed
+	projectile_blast_radius = definition.projectile_blast_radius
+	health.max_hp = definition.max_hp
+	health.current_hp = definition.max_hp
+	buff_kind = definition.buff_kind
+	buff_magnitude = definition.buff_magnitude
+	buff_duration_sec = definition.buff_duration_sec
+	buff_cooldown_sec = definition.buff_cooldown_sec
+	if definition.body_mesh != null:
+		mesh.mesh = definition.body_mesh
 
 func _apply_team_tint() -> void:
 	var mat := StandardMaterial3D.new()
@@ -111,9 +173,12 @@ func _gather_aim() -> Vector2:
 
 # --- main loop -------------------------------------------------------------
 func _physics_process(delta: float) -> void:
-	tick_slow(delta)
+	tick_status(delta)
 	_fire_timer = maxf(_fire_timer - delta, 0.0)
 	_melee_timer = maxf(_melee_timer - delta, 0.0)
+	_buff_cd = maxf(_buff_cd - delta, 0.0)
+	_update_shake(delta)
+	_update_buff_aura()
 
 	var move_in := _gather_move()
 	var aim_in := _gather_aim()
@@ -137,8 +202,9 @@ func _physics_process(delta: float) -> void:
 		move_dir = move_dir.normalized()
 
 	var spd := move_speed * speed_mult()
-	velocity.x = move_dir.x * spd
-	velocity.z = move_dir.z * spd
+	var kb := knockback_velocity()
+	velocity.x = move_dir.x * spd + kb.x
+	velocity.z = move_dir.z * spd + kb.z
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
@@ -162,6 +228,8 @@ func _physics_process(delta: float) -> void:
 		# Projectile fires on release.
 		if Input.is_action_just_released("fire"):
 			fire()
+		if Input.is_action_just_pressed("ability_2"):
+			activate_buff()
 
 	if _throw_armed:
 		_update_trajectory()
@@ -196,16 +264,22 @@ func fire() -> void:
 	# Don't shoot while aiming a tower throw; that gesture owns the release.
 	if _throw_armed:
 		return
-	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null:
+	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null or not can_use_ability():
 		return
 	_fire_timer = fire_cooldown_sec
 	# Shoot along the camera's full look direction, including pitch, so aiming
 	# down sends the shot toward the floor (body yaw still tracks the camera).
 	var shot_dir := _look_dir_3d()
 	var p := projectile_scene.instantiate() as Projectile
+	p.damage = projectile_damage * damage_mult()
+	p.speed = projectile_speed
+	p.blast_radius = projectile_blast_radius
+	p.splash_falloff = projectile_blast_radius > 0.0
+	p.owner_unit = self
 	get_tree().current_scene.add_child(p)
 	p.global_position = muzzle.global_position
 	p.setup(team, shot_dir)
+	Juice.muzzle_flash(get_tree().current_scene, muzzle.global_position, Team.body_color(team).lightened(0.3))
 
 # --- tower throw ability ---------------------------------------------------
 func set_tower_throw_armed(armed: bool) -> void:
@@ -312,34 +386,142 @@ func _hide_trajectory() -> void:
 
 # Swing whenever the cooldown is ready and an enemy is in range.
 func _auto_melee() -> void:
-	if _melee_timer > 0.0 or health.is_dead():
+	if _melee_timer > 0.0 or health.is_dead() or not can_act():
 		return
 	if melee_area.has_overlapping_bodies():
 		melee()
 
 func melee() -> void:
-	if _melee_timer > 0.0 or health.is_dead():
+	if _melee_timer > 0.0 or health.is_dead() or not can_act():
 		return
 	var hit := false
 	for other in melee_area.get_overlapping_bodies():
 		if other.has_method("take_damage"):
-			other.take_damage(melee_damage, self)
+			other.take_damage(melee_damage * damage_mult(), self)
 			hit = true
 	if hit:
 		_melee_timer = melee_cooldown_sec
+		Juice.hitstop(self, 0.45, 0.05)
+		shake(0.25)
 
 func get_fire_ready() -> float:
 	return 1.0 - (_fire_timer / fire_cooldown_sec) if fire_cooldown_sec > 0.0 else 1.0
 
+# --- buff ability ----------------------------------------------------------
+func activate_buff() -> void:
+	if _buff_cd > 0.0 or health.is_dead() or not can_use_ability():
+		return
+	_buff_cd = buff_cooldown_sec
+	var mag := _scaled_buff_magnitude()
+	match buff_kind:
+		HeroDefinition.BuffKind.ATTACK_POWER:
+			apply_attack_buff(mag, buff_duration_sec)
+		HeroDefinition.BuffKind.DAMAGE_REDUCTION:
+			apply_damage_reduction(mag, buff_duration_sec)
+		HeroDefinition.BuffKind.SPEED:
+			apply_speed_buff(mag, buff_duration_sec)
+	Juice.ring(get_tree().current_scene, global_position, active_buff_color(), 2.6, 0.45)
+
+## Buffs scale with level: > 1 buffs grow, the < 1 damage-reduction buff deepens.
+func _scaled_buff_magnitude() -> float:
+	var steps := float(_level - 1) * buff_growth_per_level
+	if buff_kind == HeroDefinition.BuffKind.DAMAGE_REDUCTION:
+		return clampf(buff_magnitude * (1.0 - steps), 0.1, 1.0)
+	return buff_magnitude * (1.0 + steps)
+
+## 0..1 readiness of the buff ability (drives the HUD button fade).
+func get_buff_ready() -> float:
+	return 1.0 - (_buff_cd / buff_cooldown_sec) if buff_cooldown_sec > 0.0 else 1.0
+
 # --- damage / death --------------------------------------------------------
-func _on_died(_source: Node) -> void:
+func _on_died(source: Node) -> void:
+	if source is Hero and source != self:
+		(source as Hero).gain_xp(xp_reward)
 	EventBus.hero_died.emit(int(team), self)
+	Juice.burst(get_tree().current_scene, global_position + Vector3.UP, Team.body_color(team), 2.4, 0.5)
 	set_tower_throw_armed(false)
 	_set_dead_visual(true)
 	_respawn_countdown = get_tree().create_timer(respawn_delay_sec)
 	await _respawn_countdown.timeout
 	if is_instance_valid(self):
 		_respawn()
+
+func _on_damaged(amount: float, _source: Node) -> void:
+	Juice.flash_mesh(mesh)
+	if controlled:
+		shake(clampf(amount / 40.0, 0.12, 0.7))
+
+# --- leveling --------------------------------------------------------------
+func gain_xp(amount: int) -> void:
+	if amount <= 0:
+		return
+	_xp += float(amount)
+	while _xp >= _xp_to_next():
+		_xp -= _xp_to_next()
+		_level += 1
+		_on_level_up()
+
+func _xp_to_next() -> float:
+	return base_xp_to_level * pow(xp_curve_growth, float(_level - 1))
+
+func _on_level_up() -> void:
+	# Scale the hero's own stats off their captured base values.
+	melee_damage = _base_melee * (1.0 + float(_level - 1) * melee_growth_per_level)
+	projectile_damage = _base_projectile_damage * (1.0 + float(_level - 1) * projectile_growth_per_level)
+	var new_max := _base_max_hp * (1.0 + float(_level - 1) * max_hp_growth_per_level)
+	var gained := new_max - health.max_hp
+	health.max_hp = new_max
+	health.heal(maxf(gained, 0.0))  # level-up tops off the new HP gained
+	# Minions of this team scale off the team level (applied by the spawner).
+	GameState.set_team_level(team, _level)
+	EventBus.hero_leveled.emit(int(team), _level)
+	Juice.ring(get_tree().current_scene, global_position, Color(1.0, 0.92, 0.4), 3.2, 0.55)
+	Juice.burst(get_tree().current_scene, global_position + Vector3.UP, Color(1.0, 0.95, 0.5), 1.8, 0.4)
+
+func get_level() -> int:
+	return _level
+
+## 0..1 progress toward the next level (drives the HUD XP bar).
+func get_xp_fraction() -> float:
+	var need := _xp_to_next()
+	return clampf(_xp / need, 0.0, 1.0) if need > 0.0 else 0.0
+
+# --- camera shake ----------------------------------------------------------
+func shake(amount: float) -> void:
+	_shake = maxf(_shake, amount)
+
+func _update_shake(delta: float) -> void:
+	_shake = maxf(_shake - delta * 3.0, 0.0)
+	if camera:
+		camera.position = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), 0.0) * _shake * 0.25
+
+# --- buff aura -------------------------------------------------------------
+func _ensure_buff_aura() -> void:
+	_buff_aura = MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.7
+	ring.outer_radius = 0.95
+	_buff_aura.mesh = ring
+	_buff_aura.rotation.x = PI / 2.0
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	_buff_aura.material_override = mat
+	_buff_aura.visible = false
+	add_child(_buff_aura)
+	_buff_aura.position = Vector3(0.0, 0.1, 0.0)
+
+func _update_buff_aura() -> void:
+	if _buff_aura == null:
+		return
+	var active := has_active_buff()
+	_buff_aura.visible = active
+	if active:
+		var c := active_buff_color()
+		var mat := _buff_aura.material_override as StandardMaterial3D
+		mat.albedo_color = Color(c.r, c.g, c.b, 0.8)
+		mat.emission = c
 
 ## Seconds until this hero respawns (0 when alive). Drives the HUD countdown.
 func get_respawn_remaining() -> float:

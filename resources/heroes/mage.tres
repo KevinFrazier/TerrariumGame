@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="HeroDefinition" load_steps=3 format=3 uid="uid://cmagehero00001"]
+
+[ext_resource type="Script" path="res://resources/hero_definition.gd" id="1_def"]
+
+[sub_resource type="CapsuleMesh" id="Mesh_mage"]
+radius = 0.45
+height = 2.2
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Mage"
+body_mesh = SubResource("Mesh_mage")
+max_hp = 170.0
+move_speed = 7.0
+melee_damage = 16.0
+fire_cooldown_sec = 0.5
+projectile_damage = 26.0
+projectile_speed = 26.0
+projectile_blast_radius = 2.0
+buff_kind = 0
+buff_magnitude = 1.6
+buff_duration_sec = 5.0
+buff_cooldown_sec = 12.0

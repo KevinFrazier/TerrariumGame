@@ -10,6 +10,8 @@ extends CombatActor
 @export var attack_cooldown_sec: float = 1.0
 @export var attack_range: float = 2.4
 @export var bounty: int = 15
+@export var xp_reward: int = 20                 ## XP a hero gains for last-hitting this minion
+@export var level_stat_growth: float = 0.12     ## per team-level boost to damage & HP (tunable)
 
 var _destination: Vector3 = Vector3.ZERO
 var _attack_timer: float = 0.0
@@ -25,10 +27,22 @@ func _ready() -> void:
 	collision_mask = Team.LAYER_WORLD | Team.LAYER_GROUND
 	targeter.team = team
 	targeter.detection_radius = attack_range + 4.0
+	_apply_level_scaling()
 	health.died.connect(_on_died)
+	health.damaged.connect(func(_a, _s): Juice.flash_mesh(mesh))
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Team.body_color(team).lightened(0.1)
 	mesh.material_override = mat
+
+## Minions inherit their team hero's level: stronger hits and more HP as you climb.
+func _apply_level_scaling() -> void:
+	var level := GameState.get_team_level(team)
+	if level <= 1:
+		return
+	var f := 1.0 + float(level - 1) * level_stat_growth
+	attack_damage *= f
+	health.max_hp *= f
+	health.current_hp = health.max_hp
 
 ## Final goal (the enemy core); the nav agent finds the shortest route there.
 func set_destination(world_pos: Vector3) -> void:
@@ -37,7 +51,7 @@ func set_destination(world_pos: Vector3) -> void:
 		nav_agent.target_position = world_pos
 
 func _physics_process(delta: float) -> void:
-	tick_slow(delta)
+	tick_status(delta)
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 
 	var target := targeter.acquire_target()
@@ -52,6 +66,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		_navigate_to(_destination, delta)
 
+	var kb := knockback_velocity()
+	velocity.x += kb.x
+	velocity.z += kb.z
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
@@ -88,15 +105,19 @@ func _stop_horizontal() -> void:
 	velocity.z = 0.0
 
 func _try_attack(target: Node) -> void:
-	if _attack_timer > 0.0:
+	if _attack_timer > 0.0 or not can_act():
 		return
 	if target.has_method("take_damage"):
 		_attack_timer = attack_cooldown_sec
-		target.take_damage(attack_damage, self)
+		target.take_damage(attack_damage * damage_mult(), self)
 
 func _on_died(source: Node) -> void:
-	var killer_team := team
-	if source != null and "team" in source:
-		killer_team = source.team
+	# A minion only ever takes damage from enemies, so the killer is the other team.
+	var killer_team := Team.Id.B if team == Team.Id.A else Team.Id.A
+	if source is Hero:
+		(source as Hero).gain_xp(xp_reward)
 	EventBus.minion_died.emit(int(team), int(killer_team), bounty)
+	var scene := get_tree().current_scene
+	Juice.burst(scene, global_position + Vector3.UP * 0.6, Team.body_color(team).lightened(0.1), 1.4, 0.35)
+	Juice.coin_burst(scene, global_position + Vector3.UP * 0.6)
 	queue_free()
