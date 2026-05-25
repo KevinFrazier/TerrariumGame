@@ -50,6 +50,10 @@ func _ready() -> void:
 	buff_button.pressed.connect(_on_buff_pressed)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	upgrade_button.visible = false
+	# Free-floating Control (no container parent) won't auto-size to its minimum,
+	# so give it an explicit size or it renders/clicks as a zero-size rect.
+	upgrade_button.size = upgrade_button.custom_minimum_size
+	upgrade_button.add_theme_font_size_override("font_size", 18)
 	aim_stick.set_sensitivity(GameState.aim_sensitivity)
 	EventBus.currency_changed.connect(_on_currency_changed)
 	EventBus.core_damaged.connect(_on_core_damaged)
