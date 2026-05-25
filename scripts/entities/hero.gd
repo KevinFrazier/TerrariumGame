@@ -35,6 +35,8 @@ extends CombatActor
 @export var spawn_attack_mult: float = 1.5
 @export var spawn_damage_reduction: float = 0.5
 @export var spawn_speed_mult: float = 1.4
+## TESTING: also pile on every debuff at spawn (locks the hero for the duration).
+@export var debug_spawn_all_debuffs: bool = true
 
 @export_group("Leveling")
 @export var xp_reward: int = 100               ## XP a killer gains for last-hitting this hero
@@ -131,6 +133,20 @@ func _apply_spawn_buffs() -> void:
 	apply_attack_buff(spawn_attack_mult, spawn_buff_duration_sec)
 	apply_damage_reduction(spawn_damage_reduction, spawn_buff_duration_sec)
 	apply_speed_buff(spawn_speed_mult, spawn_buff_duration_sec)
+	if debug_spawn_all_debuffs:
+		_apply_all_debuffs(spawn_buff_duration_sec)
+
+## TESTING ONLY: every debuff at once so all status chips/auras can be eyeballed.
+func _apply_all_debuffs(dur: float) -> void:
+	apply_slow(0.5, dur)
+	apply_burn(5.0, dur)
+	apply_poison(3.0, dur)
+	apply_stun(dur)
+	apply_root(dur)
+	apply_chill(2, dur)
+	apply_vulnerable(1.5, dur)
+	apply_weaken(0.7, dur)
+	apply_silence(dur)
 
 func _apply_definition() -> void:
 	if definition == null:
