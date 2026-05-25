@@ -16,6 +16,9 @@ var _tower_label: Label3D  ## world-space inspect panel, floats beside the neare
 var _upgrade_tower: Tower   ## own-team tower the floating Upgrade button currently targets
 var _vignette: ColorRect
 var _core_warn: float = 0.0  ## decaying intensity of the "core under attack" flash
+var _status_box: HBoxContainer
+var _status_chips: Array[ColorRect] = []
+const MAX_STATUS_CHIPS := 12
 
 @onready var move_stick: VirtualJoystick = $MoveStick
 @onready var aim_stick: VirtualJoystick = $AimStick
@@ -51,6 +54,7 @@ func _ready() -> void:
 	EventBus.currency_changed.connect(_on_currency_changed)
 	EventBus.core_damaged.connect(_on_core_damaged)
 	_build_vignette()
+	_build_status_chips()
 
 func _build_vignette() -> void:
 	_vignette = ColorRect.new()
@@ -63,6 +67,40 @@ func _build_vignette() -> void:
 	_vignette.material = mat
 	add_child(_vignette)
 	move_child(_vignette, 0)  # behind the interactive UI
+
+## A pooled row of colored chips, one per active buff/debuff on the active hero.
+func _build_status_chips() -> void:
+	_status_box = HBoxContainer.new()
+	_status_box.position = Vector2(20, 72)
+	_status_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_box.add_theme_constant_override("separation", 4)
+	add_child(_status_box)
+	for i in MAX_STATUS_CHIPS:
+		var chip := ColorRect.new()
+		chip.custom_minimum_size = Vector2(42, 20)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.visible = false
+		var label := Label.new()
+		label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", Color.BLACK)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(label)
+		_status_box.add_child(chip)
+		_status_chips.append(chip)
+
+func _update_status_chips() -> void:
+	var fx := _hero.get_active_effects()
+	for i in _status_chips.size():
+		var chip := _status_chips[i]
+		if i < fx.size():
+			chip.color = fx[i]["color"]
+			(chip.get_child(0) as Label).text = fx[i]["name"]
+			chip.visible = true
+		else:
+			chip.visible = false
 
 func _on_buff_pressed() -> void:
 	if _hero and is_instance_valid(_hero):
@@ -111,6 +149,7 @@ func _process(delta: float) -> void:
 	_update_respawn_overlay()
 	_update_tower_info()
 	_update_vignette(delta)
+	_update_status_chips()
 
 ## Red low-HP edges, overridden by an orange flash while your core is attacked.
 func _update_vignette(delta: float) -> void:

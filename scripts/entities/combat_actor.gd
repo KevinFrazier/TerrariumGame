@@ -27,6 +27,15 @@ const COLOR_DOT := Color(1.0, 0.55, 0.2)
 const COLOR_BUFF_ATTACK := Color(1.0, 0.6, 0.2)
 const COLOR_BUFF_DEFENSE := Color(0.4, 0.7, 1.0)
 const COLOR_BUFF_SPEED := Color(0.4, 1.0, 0.5)
+const COLOR_SLOW := Color(0.4, 0.8, 1.0)
+const COLOR_FREEZE := Color(0.65, 0.9, 1.0)
+const COLOR_BURN := Color(1.0, 0.45, 0.15)
+const COLOR_POISON := Color(0.55, 0.9, 0.3)
+const COLOR_STUN := Color(1.0, 0.9, 0.3)
+const COLOR_ROOT := Color(0.7, 0.5, 0.3)
+const COLOR_VULNERABLE := Color(0.9, 0.35, 0.9)
+const COLOR_WEAKEN := Color(0.6, 0.6, 0.6)
+const COLOR_SILENCE := Color(0.7, 0.4, 1.0)
 
 @export var team: Team.Id = Team.Id.A
 
@@ -108,12 +117,39 @@ func knockback_velocity() -> Vector3:
 func has_active_buff() -> bool:
 	return _atk_buff_timer > 0.0 or _def_buff_timer > 0.0 or _speed_buff_timer > 0.0
 
-func active_buff_color() -> Color:
-	if _atk_buff_timer > 0.0:
-		return COLOR_BUFF_ATTACK
-	if _def_buff_timer > 0.0:
-		return COLOR_BUFF_DEFENSE
-	return COLOR_BUFF_SPEED
+## Every active buff and debuff, each as {name, color, buff}. Drives the HUD
+## status chips and the unit's status aura. Multiple effects coexist freely.
+func get_active_effects() -> Array[Dictionary]:
+	var fx: Array[Dictionary] = []
+	if _atk_buff_timer > 0.0: fx.append({"name": "ATK", "color": COLOR_BUFF_ATTACK, "buff": true})
+	if _def_buff_timer > 0.0: fx.append({"name": "DEF", "color": COLOR_BUFF_DEFENSE, "buff": true})
+	if _speed_buff_timer > 0.0: fx.append({"name": "SPD", "color": COLOR_BUFF_SPEED, "buff": true})
+	if _freeze_timer > 0.0:
+		fx.append({"name": "FRZ", "color": COLOR_FREEZE, "buff": false})
+	elif _chill_timer > 0.0:
+		fx.append({"name": "CHL", "color": COLOR_FREEZE, "buff": false})
+	if _slow_timer > 0.0: fx.append({"name": "SLO", "color": COLOR_SLOW, "buff": false})
+	if _burn_timer > 0.0: fx.append({"name": "BRN", "color": COLOR_BURN, "buff": false})
+	if _poison_timer > 0.0: fx.append({"name": "PSN", "color": COLOR_POISON, "buff": false})
+	if _stun_timer > 0.0: fx.append({"name": "STN", "color": COLOR_STUN, "buff": false})
+	if _root_timer > 0.0: fx.append({"name": "ROT", "color": COLOR_ROOT, "buff": false})
+	if _vuln_timer > 0.0: fx.append({"name": "VUL", "color": COLOR_VULNERABLE, "buff": false})
+	if _weaken_timer > 0.0: fx.append({"name": "WKN", "color": COLOR_WEAKEN, "buff": false})
+	if _silence_timer > 0.0: fx.append({"name": "SIL", "color": COLOR_SILENCE, "buff": false})
+	return fx
+
+func has_active_effects() -> bool:
+	return not get_active_effects().is_empty()
+
+## Average color of all active effects (for the blended status aura).
+func blended_effect_color() -> Color:
+	var fx := get_active_effects()
+	if fx.is_empty():
+		return Color.WHITE
+	var sum := Color(0, 0, 0)
+	for e in fx:
+		sum += e["color"] as Color
+	return sum / float(fx.size())
 
 # --- per-frame decay --------------------------------------------------------
 ## Decay every active effect and apply damage-over-time. Call once per physics

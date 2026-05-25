@@ -30,9 +30,7 @@ func _ready() -> void:
 	_apply_level_scaling()
 	health.died.connect(_on_died)
 	health.damaged.connect(func(_a, _s): Juice.flash_mesh(mesh))
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Team.body_color(team).lightened(0.1)
-	mesh.material_override = mat
+	mesh.material_override = Juice.make_unit_material(Team.body_color(team).lightened(0.1))
 
 ## Minions inherit their team hero's level: stronger hits and more HP as you climb.
 func _apply_level_scaling() -> void:

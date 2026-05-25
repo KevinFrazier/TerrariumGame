@@ -137,9 +137,7 @@ func _apply_definition() -> void:
 		mesh.mesh = definition.body_mesh
 
 func _apply_team_tint() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Team.body_color(team)
-	mesh.material_override = mat
+	mesh.material_override = Juice.make_unit_material(Team.body_color(team))
 
 func set_controlled(value: bool) -> void:
 	controlled = value
@@ -420,7 +418,7 @@ func activate_buff() -> void:
 			apply_damage_reduction(mag, buff_duration_sec)
 		HeroDefinition.BuffKind.SPEED:
 			apply_speed_buff(mag, buff_duration_sec)
-	Juice.ring(get_tree().current_scene, global_position, active_buff_color(), 2.6, 0.45)
+	Juice.ring(get_tree().current_scene, global_position, blended_effect_color(), 2.6, 0.45)
 
 ## Buffs scale with level: > 1 buffs grow, the < 1 damage-reduction buff deepens.
 func _scaled_buff_magnitude() -> float:
@@ -515,10 +513,11 @@ func _ensure_buff_aura() -> void:
 func _update_buff_aura() -> void:
 	if _buff_aura == null:
 		return
-	var active := has_active_buff()
+	# The aura reflects every active buff and debuff at once (blended color).
+	var active := has_active_effects()
 	_buff_aura.visible = active
 	if active:
-		var c := active_buff_color()
+		var c := blended_effect_color()
 		var mat := _buff_aura.material_override as StandardMaterial3D
 		mat.albedo_color = Color(c.r, c.g, c.b, 0.8)
 		mat.emission = c
