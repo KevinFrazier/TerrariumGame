@@ -34,6 +34,10 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 @onready var _anim: AnimationPlayer = get_node_or_null("AnimationPlayer")
 @onready var _fire_sound: AudioStreamPlayer3D = get_node_or_null("FireSound")
 
+var _current_target: Node3D
+var _range_ring: MeshInstance3D
+var _target_line: MeshInstance3D
+
 func _ready() -> void:
 	add_to_group("damageable")
 	add_to_group("towers")
@@ -47,6 +51,8 @@ func _ready() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Team.body_color(team).darkened(0.25)
 	mesh.material_override = mat
+	_build_range_ring()
+	_build_target_line()
 
 func _apply_definition() -> void:
 	if definition == null:
@@ -69,11 +75,64 @@ func _apply_definition() -> void:
 
 func _physics_process(delta: float) -> void:
 	_fire_timer = maxf(_fire_timer - delta, 0.0)
-	if _fire_timer > 0.0:
+	# Track the target every frame so the firing line stays current.
+	_current_target = targeter.acquire_target(_priority)
+	_update_target_line()
+	if _current_target != null and _fire_timer <= 0.0:
+		_fire_at(_current_target)
+
+## Flat translucent ring on the ground marking the tower's attack range.
+func _build_range_ring() -> void:
+	var radius := definition.attack_range if definition else targeter.detection_radius
+	if radius <= 0.0:
 		return
-	var target := targeter.acquire_target(_priority)
-	if target != null:
-		_fire_at(target)
+	var inner := maxf(radius - 0.3, 0.05)
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	var segments := 56
+	for i in segments + 1:
+		var a := TAU * float(i) / float(segments)
+		var d := Vector3(cos(a), 0.0, sin(a))
+		im.surface_add_vertex(d * inner)
+		im.surface_add_vertex(d * radius)
+	im.surface_end()
+	_range_ring = MeshInstance3D.new()
+	_range_ring.mesh = im
+	_range_ring.position = Vector3(0.0, 0.06, 0.0)
+	_range_ring.material_override = _flat_material(0.28)
+	add_child(_range_ring)
+
+## A thin line drawn from the muzzle to the tower's current target.
+func _build_target_line() -> void:
+	_target_line = MeshInstance3D.new()
+	_target_line.top_level = true  # we feed world-space vertices
+	_target_line.material_override = _flat_material(0.85)
+	_target_line.visible = false
+	add_child(_target_line)
+
+func _update_target_line() -> void:
+	if _target_line == null:
+		return
+	if _current_target == null or not is_instance_valid(_current_target):
+		_target_line.visible = false
+		return
+	var im := ImmediateMesh.new()
+	im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+	im.surface_add_vertex(muzzle.global_position)
+	im.surface_add_vertex((_current_target as Node3D).global_position + Vector3.UP * 0.8)
+	im.surface_end()
+	_target_line.mesh = im
+	_target_line.visible = true
+
+func _flat_material(alpha: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var c := Team.body_color(team)
+	c.a = alpha
+	mat.albedo_color = c
+	return mat
 
 func _fire_at(target: Node3D) -> void:
 	if _proj_scene == null:

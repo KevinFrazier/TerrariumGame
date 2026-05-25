@@ -12,6 +12,8 @@ extends Node3D
 @onready var hud: GameHUD = $HUD
 
 var nav_region: NavigationRegion3D
+var _path_line_a: MeshInstance3D
+var _path_line_b: MeshInstance3D
 var _local_hero: Hero
 
 func _ready() -> void:
@@ -70,6 +72,41 @@ func _setup_navigation() -> void:
 func _bake_navigation() -> void:
 	if nav_region:
 		nav_region.bake_navigation_mesh(false)
+		_redraw_lane_paths()
+
+## Draw each team's navmesh route (spawner -> enemy core) as a line on the ground.
+func _redraw_lane_paths() -> void:
+	# Let the navigation map sync the freshly baked mesh before querying it.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if not is_inside_tree() or nav_region == null:
+		return
+	var map := nav_region.get_navigation_map()
+	NavigationServer3D.map_force_update(map)
+	_path_line_a = _draw_lane(_path_line_a, map, spawner_a.global_position, core_b.global_position, Team.Id.A)
+	_path_line_b = _draw_lane(_path_line_b, map, spawner_b.global_position, core_a.global_position, Team.Id.B)
+
+func _draw_lane(line: MeshInstance3D, map: RID, from: Vector3, to: Vector3, team: Team.Id) -> MeshInstance3D:
+	if line == null:
+		line = MeshInstance3D.new()
+		line.top_level = true
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var c := Team.body_color(team)
+		c.a = 0.7
+		mat.albedo_color = c
+		line.material_override = mat
+		add_child(line)
+	var path := NavigationServer3D.map_get_path(map, from, to, true)
+	var im := ImmediateMesh.new()
+	if path.size() >= 2:
+		im.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
+		for p in path:
+			im.surface_add_vertex(p + Vector3.UP * 0.12)
+		im.surface_end()
+	line.mesh = im
+	return line
 
 func _hero_for(team: Team.Id) -> Hero:
 	return hero_a if team == Team.Id.A else hero_b
