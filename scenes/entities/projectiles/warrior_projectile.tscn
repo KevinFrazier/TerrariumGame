@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3 uid="uid://cprojwarrior0001"]
+
+[ext_resource type="Script" path="res://scripts/entities/projectile.gd" id="1_proj"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_warrior"]
+albedo_color = Color(0.55, 0.35, 0.2, 1)
+metallic = 0.6
+roughness = 0.35
+emission_enabled = true
+emission = Color(0.6, 0.28, 0.1, 1)
+emission_energy_multiplier = 0.8
+
+[sub_resource type="SphereMesh" id="Mesh_warrior"]
+material = SubResource("Mat_warrior")
+radius = 0.4
+height = 0.8
+radial_segments = 12
+rings = 6
+
+[sub_resource type="SphereShape3D" id="Shape_warrior"]
+radius = 0.4
+
+[node name="Projectile" type="Area3D"]
+script = ExtResource("1_proj")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_warrior")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+shape = SubResource("Shape_warrior")

@@ -54,7 +54,7 @@ func _spawn_popup(amount: float, color: Color) -> void:
 	if host == null or scene == null:
 		return
 	# Bigger hits punch up the number's size for crit-style feedback.
-	var scale := clampf(1.0 + (amount / maxf(max_hp, 1.0)) * 2.5, 1.0, 2.2)
+	var scale := clampf(1.0 + (amount / maxf(max_hp, 1.0)) * 2.0, 1.0, 1.6)
 	DamagePopup.spawn(scene, host.global_position + Vector3.UP * popup_height, amount, color, scale)
 
 func fraction() -> float:

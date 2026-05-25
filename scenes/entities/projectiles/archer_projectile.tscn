@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3 uid="uid://cprojarcher00001"]
+
+[ext_resource type="Script" path="res://scripts/entities/projectile.gd" id="1_proj"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_archer"]
+albedo_color = Color(1.0, 0.95, 0.5, 1)
+emission_enabled = true
+emission = Color(1.0, 0.85, 0.3, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="BoxMesh" id="Mesh_archer"]
+material = SubResource("Mat_archer")
+size = Vector3(0.1, 0.1, 0.7)
+
+[sub_resource type="BoxShape3D" id="Shape_archer"]
+size = Vector3(0.12, 0.12, 0.7)
+
+[node name="Projectile" type="Area3D"]
+script = ExtResource("1_proj")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_archer")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+shape = SubResource("Shape_archer")

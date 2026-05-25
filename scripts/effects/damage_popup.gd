@@ -27,8 +27,8 @@ func _ready() -> void:
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	no_depth_test = true
 	fixed_size = true
-	font_size = int(48 * _scale)
-	outline_size = 12
+	font_size = int(32 * _scale)
+	outline_size = 8
 	outline_modulate = Color(0, 0, 0, 0.9)
 	render_priority = 10
 	_vel = Vector3(drift * randf_range(-1.0, 1.0), rise_speed, drift * randf_range(-1.0, 1.0))
@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 	# Quick overshoot "pop" on spawn, then settle.
 	var t := _age / lifetime_sec
 	var pop := 1.0 + 0.35 * maxf(1.0 - t * 6.0, 0.0)
-	pixel_size = 0.005 * pop
+	pixel_size = 0.003 * pop
 	modulate.a = clampf(1.0 - t, 0.0, 1.0)
 	if _age >= lifetime_sec:
 		queue_free()

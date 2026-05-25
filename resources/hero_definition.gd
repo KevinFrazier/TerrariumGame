@@ -17,6 +17,8 @@ enum BuffKind { ATTACK_POWER, DAMAGE_REDUCTION, SPEED }
 @export var fire_cooldown_sec: float = 0.45
 
 @export_group("Projectile")
+## Per-class projectile visual/scene; falls back to the hero's default when unset.
+@export var projectile_scene: PackedScene
 @export var projectile_damage: float = 18.0
 @export var projectile_speed: float = 28.0
 ## > 0 makes the shot a small AoE (mage bolt).

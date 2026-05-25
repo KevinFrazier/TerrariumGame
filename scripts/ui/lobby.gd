@@ -25,6 +25,15 @@ func _ready() -> void:
 	_refresh_class_buttons()
 	start_button.pressed.connect(_on_start_pressed)
 	side_button.pressed.connect(_on_side_pressed)
+	_scale_menu()
+
+## Render the whole menu at 2x. Scaling around the VBox's center keeps it centered
+## inside the CenterContainer.
+func _scale_menu() -> void:
+	await get_tree().process_frame
+	var vbox := $Center/VBox
+	vbox.pivot_offset = vbox.size / 2.0
+	vbox.scale = Vector2(2.0, 2.0)
 
 ## One labeled row of Warrior/Mage/Archer buttons per side, inserted under the
 ## control toggle. Built in code to avoid hand-authoring every button node.

@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://cprojmage000001"]
+
+[ext_resource type="Script" path="res://scripts/entities/projectile.gd" id="1_proj"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_mage"]
+albedo_color = Color(0.5, 0.4, 1.0, 1)
+emission_enabled = true
+emission = Color(0.45, 0.3, 1.0, 1)
+emission_energy_multiplier = 2.6
+
+[sub_resource type="SphereMesh" id="Mesh_mage"]
+material = SubResource("Mat_mage")
+radius = 0.34
+height = 0.68
+radial_segments = 14
+rings = 7
+
+[sub_resource type="SphereShape3D" id="Shape_mage"]
+radius = 0.34
+
+[node name="Projectile" type="Area3D"]
+script = ExtResource("1_proj")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_mage")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+shape = SubResource("Shape_mage")

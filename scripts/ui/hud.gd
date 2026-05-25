@@ -44,9 +44,9 @@ func _ready() -> void:
 	result_panel.visible = false
 	fire_button.text = "FIRE"
 	back_button.pressed.connect(_on_back_pressed)
-	# Projectile shoots on release. Tower button is a toggle: tap to arm/aim
-	# (thumb free to aim), tap again to throw.
-	fire_button.button_up.connect(_on_fire_released)
+	# Projectile shoots on button press (click). Tower button is a toggle: tap to
+	# arm/aim (thumb free to aim), tap again to throw.
+	fire_button.button_down.connect(_on_fire_pressed)
 	tower_button.toggled.connect(_on_tower_toggled)
 	buff_button.pressed.connect(_on_buff_pressed)
 	swap_button.pressed.connect(func(): EventBus.swap_control_requested.emit())
@@ -120,7 +120,7 @@ func _on_core_damaged(team: int) -> void:
 	if _hero and int(_hero.team) == team:
 		_core_warn = 0.7
 
-func _on_fire_released() -> void:
+func _on_fire_pressed() -> void:
 	if _hero and is_instance_valid(_hero):
 		_hero.fire()
 

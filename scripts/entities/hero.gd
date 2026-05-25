@@ -157,6 +157,8 @@ func _apply_definition() -> void:
 	projectile_damage = definition.projectile_damage
 	projectile_speed = definition.projectile_speed
 	projectile_blast_radius = definition.projectile_blast_radius
+	if definition.projectile_scene != null:
+		projectile_scene = definition.projectile_scene
 	health.max_hp = definition.max_hp
 	health.current_hp = definition.max_hp
 	buff_kind = definition.buff_kind
@@ -253,8 +255,8 @@ func _physics_process(delta: float) -> void:
 				release_tower_throw()
 			else:
 				set_tower_throw_armed(true)
-		# Projectile fires on release.
-		if Input.is_action_just_released("fire"):
+		# Projectile fires on press (click), not on release.
+		if Input.is_action_just_pressed("fire"):
 			fire()
 		if Input.is_action_just_pressed("ability_2"):
 			activate_buff()
