@@ -49,8 +49,8 @@ text = ""
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 40.0
-offset_top = -220.0
-offset_right = 220.0
+offset_top = -340.0
+offset_right = 340.0
 offset_bottom = -40.0
 mouse_filter = 0
 script = ExtResource("2_stick")
@@ -62,9 +62,9 @@ mouse_filter = 2
 modulate = Color(1, 1, 1, 0.4)
 
 [node name="Knob" type="Panel" parent="MoveStick"]
-custom_minimum_size = Vector2(70, 70)
-offset_right = 70.0
-offset_bottom = 70.0
+custom_minimum_size = Vector2(110, 110)
+offset_right = 110.0
+offset_bottom = 110.0
 mouse_filter = 2
 
 [node name="AimStick" type="Control" parent="."]
