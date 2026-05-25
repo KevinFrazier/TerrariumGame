@@ -1,7 +1,7 @@
 class_name WaveSpawner
 extends Node3D
-## Spawns timed minion waves at its own position and sends them down a lane
-## (waypoints ending at the enemy core). One spawner per team.
+## Spawns timed minion waves at its own position and sends them toward the enemy
+## core, where each minion navmesh-paths to the destination. One spawner per team.
 
 @export var team: Team.Id = Team.Id.A
 @export var minion_scene: PackedScene = preload("res://scenes/entities/minion.tscn")
@@ -11,17 +11,17 @@ extends Node3D
 @export var start_delay_sec: float = 3.0
 @export var auto_start: bool = false
 
-var _waypoints: PackedVector3Array = PackedVector3Array()
+var _destination: Vector3 = Vector3.ZERO
 var _running: bool = false
 
 func _ready() -> void:
 	if auto_start:
 		start()
 
-## Lane waypoints in world space, ending at the enemy core.
-func configure(p_team: Team.Id, waypoints: PackedVector3Array) -> void:
+## Destination in world space (the enemy core); minions navmesh-path to it.
+func configure(p_team: Team.Id, destination: Vector3) -> void:
 	team = p_team
-	_waypoints = waypoints
+	_destination = destination
 
 func start() -> void:
 	if _running:
@@ -54,5 +54,4 @@ func _spawn_one() -> void:
 	# Slight lateral scatter so the wave doesn't stack into one column.
 	var jitter := Vector3(randf_range(-1.5, 1.5), 0.0, randf_range(-1.5, 1.5))
 	m.global_position = global_position + jitter
-	if not _waypoints.is_empty():
-		m.set_path(_waypoints)
+	m.set_destination(_destination)

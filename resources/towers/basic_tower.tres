@@ -1,14 +1,18 @@
-[gd_resource type="Resource" script_class="TowerDefinition" load_steps=3 format=3 uid="uid://cbasictower00001"]
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=4 format=3 uid="uid://cbasictower00001"]
 
 [ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
-[ext_resource type="PackedScene" path="res://scenes/entities/tower.tscn" id="2_scene"]
+[ext_resource type="PackedScene" uid="uid://carrowtower00001" path="res://scenes/entities/towers/arrow_tower.tscn" id="2_scene"]
+[ext_resource type="Resource" uid="uid://carrowtower00002" path="res://resources/towers/arrow_tower_2.tres" id="3_upgrade"]
 
 [resource]
 script = ExtResource("1_def")
 display_name = "Arrow Tower"
-cost = 75
-damage = 18.0
+cost = 60
+damage = 14.0
 attack_range = 11.0
-fire_rate_per_sec = 1.2
+fire_rate_per_sec = 1.6
 max_hp = 160.0
 scene = ExtResource("2_scene")
+projectile_speed = 30.0
+upgrade = ExtResource("3_upgrade")
+upgrade_cost = 90

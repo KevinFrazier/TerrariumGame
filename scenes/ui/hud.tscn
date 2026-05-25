@@ -29,6 +29,22 @@ text = "Gold: 0"
 layout_mode = 2
 text = "Player A"
 
+[node name="XPBar" type="ProgressBar" parent="."]
+offset_left = 20.0
+offset_top = 50.0
+offset_right = 300.0
+offset_bottom = 64.0
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="LevelLabel" type="Label" parent="."]
+offset_left = 308.0
+offset_top = 44.0
+offset_right = 420.0
+offset_bottom = 66.0
+text = "Lv 1"
+
 [node name="BuildMenu" type="VBoxContainer" parent="."]
 offset_left = 20.0
 offset_top = 64.0
@@ -36,10 +52,6 @@ offset_right = 240.0
 offset_bottom = 170.0
 theme_override_constants/separation = 6
 script = ExtResource("3_build")
-
-[node name="BuildButton" type="Button" parent="BuildMenu"]
-layout_mode = 2
-text = "Build Tower"
 
 [node name="CountLabel" type="Label" parent="BuildMenu"]
 layout_mode = 2
@@ -53,8 +65,8 @@ text = ""
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 40.0
-offset_top = -220.0
-offset_right = 220.0
+offset_top = -340.0
+offset_right = 340.0
 offset_bottom = -40.0
 mouse_filter = 0
 script = ExtResource("2_stick")
@@ -66,34 +78,33 @@ mouse_filter = 2
 modulate = Color(1, 1, 1, 0.4)
 
 [node name="Knob" type="Panel" parent="MoveStick"]
-custom_minimum_size = Vector2(70, 70)
-offset_right = 70.0
-offset_bottom = 70.0
+custom_minimum_size = Vector2(110, 110)
+offset_right = 110.0
+offset_bottom = 110.0
 mouse_filter = 2
 
 [node name="AimStick" type="Control" parent="."]
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -220.0
-offset_top = -220.0
-offset_right = -40.0
-offset_bottom = -40.0
-mouse_filter = 0
-script = ExtResource("2_stick")
-
-[node name="Base" type="Panel" parent="AimStick"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+script = ExtResource("2_stick")
+floating = true
+float_radius = 90.0
+
+[node name="Base" type="Panel" parent="AimStick"]
+custom_minimum_size = Vector2(180, 180)
+offset_right = 180.0
+offset_bottom = 180.0
+mouse_filter = 2
 modulate = Color(1, 1, 1, 0.4)
+visible = false
 
 [node name="Knob" type="Panel" parent="AimStick"]
 custom_minimum_size = Vector2(70, 70)
 offset_right = 70.0
 offset_bottom = 70.0
 mouse_filter = 2
+visible = false
 
 [node name="Actions" type="VBoxContainer" parent="."]
 anchor_left = 1.0
@@ -101,7 +112,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -470.0
-offset_top = -290.0
+offset_top = -370.0
 offset_right = -250.0
 offset_bottom = -40.0
 theme_override_constants/separation = 12
@@ -112,16 +123,59 @@ layout_mode = 2
 toggle_mode = false
 text = "FIRE"
 
-[node name="MeleeButton" type="Button" parent="Actions"]
-custom_minimum_size = Vector2(140, 70)
-layout_mode = 2
-text = "MELEE"
-
 [node name="TowerButton" type="Button" parent="Actions"]
 custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
 toggle_mode = true
 text = "TOWER"
+
+[node name="BuffButton" type="Button" parent="Actions"]
+custom_minimum_size = Vector2(140, 70)
+layout_mode = 2
+text = "BUFF"
+
+[node name="SwapButton" type="Button" parent="Actions"]
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+text = "SWAP HERO"
+
+[node name="UpgradeButton" type="Button" parent="."]
+visible = false
+custom_minimum_size = Vector2(150, 44)
+text = "Upgrade"
+
+[node name="RespawnPanel" type="Panel" parent="."]
+visible = false
+mouse_filter = 2
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = -55.0
+offset_right = 190.0
+offset_bottom = 55.0
+
+[node name="VBox" type="VBoxContainer" parent="RespawnPanel"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -12.0
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="RespawnPanel/VBox"]
+mouse_filter = 2
+text = "You died"
+horizontal_alignment = 1
+
+[node name="CountdownLabel" type="Label" parent="RespawnPanel/VBox"]
+mouse_filter = 2
+text = "Respawning in 4..."
+horizontal_alignment = 1
 
 [node name="ResultPanel" type="Panel" parent="."]
 visible = false

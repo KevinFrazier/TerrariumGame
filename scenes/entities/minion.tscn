@@ -37,3 +37,10 @@ shape = SubResource("Shape_aggro_m")
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("3_health")
 max_hp = 60.0
+
+[node name="NavAgent" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.6
+target_desired_distance = 1.0
+radius = 0.4
+height = 1.2
+avoidance_enabled = false

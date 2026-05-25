@@ -1,24 +1,24 @@
 class_name Minion
-extends CharacterBody3D
-## Lane creep. Marches along waypoints toward the enemy core; if the shared
-## Targeter finds an enemy in range, it stops to attack on a cooldown. Awards a
-## bounty to the killer's team on death.
+extends CombatActor
+## Lane creep. Uses a NavigationAgent3D to find the shortest path across the
+## arena's NavigationRegion3D toward the enemy core, routing around structures.
+## If the shared Targeter finds an enemy in range, it stops to attack on a
+## cooldown. Awards a bounty to the killer's team on death.
 
-@export var team: Team.Id = Team.Id.A
 @export var move_speed: float = 4.0
 @export var attack_damage: float = 10.0
 @export var attack_cooldown_sec: float = 1.0
 @export var attack_range: float = 2.4
 @export var bounty: int = 15
+@export var xp_reward: int = 20                 ## XP a hero gains for last-hitting this minion
+@export var level_stat_growth: float = 0.12     ## per team-level boost to damage & HP (tunable)
 
-var _path: PackedVector3Array = PackedVector3Array()
-var _path_index: int = 0
+var _destination: Vector3 = Vector3.ZERO
 var _attack_timer: float = 0.0
-var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
 @onready var targeter: Targeter = $Targeter
-@onready var health: HealthComponent = $HealthComponent
 @onready var mesh: MeshInstance3D = $Mesh
+@onready var nav_agent: NavigationAgent3D = $NavAgent
 
 func _ready() -> void:
 	add_to_group("damageable")
@@ -27,17 +27,29 @@ func _ready() -> void:
 	collision_mask = Team.LAYER_WORLD | Team.LAYER_GROUND
 	targeter.team = team
 	targeter.detection_radius = attack_range + 4.0
+	_apply_level_scaling()
 	health.died.connect(_on_died)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Team.body_color(team).lightened(0.1)
-	mesh.material_override = mat
+	health.damaged.connect(func(_a, _s): Juice.flash_mesh(mesh))
+	mesh.material_override = Juice.make_unit_material(Team.body_color(team).lightened(0.1))
 
-## World-space waypoints, ending at the enemy core position.
-func set_path(points: PackedVector3Array) -> void:
-	_path = points
-	_path_index = 0
+## Minions inherit their team hero's level: stronger hits and more HP as you climb.
+func _apply_level_scaling() -> void:
+	var level := GameState.get_team_level(team)
+	if level <= 1:
+		return
+	var f := 1.0 + float(level - 1) * level_stat_growth
+	attack_damage *= f
+	health.max_hp *= f
+	health.current_hp = health.max_hp
+
+## Final goal (the enemy core); the nav agent finds the shortest route there.
+func set_destination(world_pos: Vector3) -> void:
+	_destination = world_pos
+	if is_node_ready():
+		nav_agent.target_position = world_pos
 
 func _physics_process(delta: float) -> void:
+	tick_status(delta)
 	_attack_timer = maxf(_attack_timer - delta, 0.0)
 
 	var target := targeter.acquire_target()
@@ -48,39 +60,36 @@ func _physics_process(delta: float) -> void:
 			_stop_horizontal()
 			_try_attack(target)
 		else:
-			_move_toward(target.global_position, delta)
+			_navigate_to(target.global_position, delta)
 	else:
-		_advance_along_path(delta)
+		_navigate_to(_destination, delta)
 
+	var kb := knockback_velocity()
+	velocity.x += kb.x
+	velocity.z += kb.z
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
 		velocity.y = 0.0
 	move_and_slide()
 
-func _advance_along_path(delta: float) -> void:
-	if _path.is_empty() or _path_index >= _path.size():
+## Steer one step along the agent's path toward `goal`.
+func _navigate_to(goal: Vector3, delta: float) -> void:
+	nav_agent.target_position = goal
+	if nav_agent.is_navigation_finished():
 		_stop_horizontal()
 		return
-	var goal := _path[_path_index]
-	if global_position.distance_to(goal) < 1.0:
-		_path_index += 1
-		if _path_index >= _path.size():
-			_stop_horizontal()
-			return
-		goal = _path[_path_index]
-	_move_toward(goal, delta)
-
-func _move_toward(world_pos: Vector3, delta: float) -> void:
-	var dir := world_pos - global_position
+	var next := nav_agent.get_next_path_position()
+	var dir := next - global_position
 	dir.y = 0.0
 	if dir.length_squared() < 0.0001:
 		_stop_horizontal()
 		return
 	dir = dir.normalized()
-	velocity.x = dir.x * move_speed
-	velocity.z = dir.z * move_speed
-	_face_toward(world_pos, delta)
+	var spd := move_speed * speed_mult()
+	velocity.x = dir.x * spd
+	velocity.z = dir.z * spd
+	_face_toward(next, delta)
 
 func _face_toward(world_pos: Vector3, delta: float) -> void:
 	var dir := world_pos - global_position
@@ -94,18 +103,19 @@ func _stop_horizontal() -> void:
 	velocity.z = 0.0
 
 func _try_attack(target: Node) -> void:
-	if _attack_timer > 0.0:
+	if _attack_timer > 0.0 or not can_act():
 		return
 	if target.has_method("take_damage"):
 		_attack_timer = attack_cooldown_sec
-		target.take_damage(attack_damage, self)
-
-func take_damage(amount: float, source: Node = null) -> void:
-	health.take_damage(amount, source)
+		target.take_damage(attack_damage * damage_mult(), self)
 
 func _on_died(source: Node) -> void:
-	var killer_team := team
-	if source != null and "team" in source:
-		killer_team = source.team
+	# A minion only ever takes damage from enemies, so the killer is the other team.
+	var killer_team := Team.Id.B if team == Team.Id.A else Team.Id.A
+	if source is Hero:
+		(source as Hero).gain_xp(xp_reward)
 	EventBus.minion_died.emit(int(team), int(killer_team), bounty)
+	var scene := get_tree().current_scene
+	Juice.burst(scene, global_position + Vector3.UP * 0.6, Team.body_color(team).lightened(0.1), 1.4, 0.35)
+	Juice.coin_burst(scene, global_position + Vector3.UP * 0.6)
 	queue_free()

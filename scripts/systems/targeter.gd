@@ -10,6 +10,9 @@ extends Area3D
 ##   Minion / Tower: `acquire_target()` — pure auto-aim, nearest enemy in range.
 ##   Hero:           `nearest_in_direction(dir)` — aim-assist toward a direction.
 
+## How a tower picks among in-range enemies.
+enum Priority { NEAREST, LOWEST_HP, HIGHEST_HP }
+
 @export var team: Team.Id = Team.Id.NEUTRAL:
 	set(value):
 		team = value
@@ -48,9 +51,18 @@ func _ensure_shape() -> void:
 func _refresh_mask() -> void:
 	collision_mask = Team.enemy_mask(team)
 
-## Nearest living enemy in range, or null.
-func acquire_target() -> Node3D:
+## Living enemy in range chosen by `priority`, or null.
+func acquire_target(priority: Priority = Priority.NEAREST) -> Node3D:
 	_prune()
+	match priority:
+		Priority.LOWEST_HP:
+			return _by_hp(true)
+		Priority.HIGHEST_HP:
+			return _by_hp(false)
+		_:
+			return _nearest()
+
+func _nearest() -> Node3D:
 	var best: Node3D = null
 	var best_dist := INF
 	var origin := global_position
@@ -60,6 +72,19 @@ func acquire_target() -> Node3D:
 			best_dist = d
 			best = e
 	return best
+
+## Enemy with the lowest (or highest) current HP; ties broken by nearest.
+func _by_hp(lowest: bool) -> Node3D:
+	var best: Node3D = null
+	var best_hp := INF if lowest else -INF
+	for e in _enemies:
+		if not e.has_method("get_hp"):
+			continue
+		var hp: float = e.get_hp()
+		if (lowest and hp < best_hp) or (not lowest and hp > best_hp):
+			best_hp = hp
+			best = e
+	return best if best != null else _nearest()
 
 ## Enemy whose direction best matches `dir` (aim-assist). Falls back to the
 ## nearest enemy when `dir` is zero or nothing is suitably aligned.

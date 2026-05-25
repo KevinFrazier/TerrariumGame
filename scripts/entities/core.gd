@@ -15,6 +15,7 @@ func _ready() -> void:
 	collision_layer = Team.body_layer(team) | Team.LAYER_WORLD
 	collision_mask = 0
 	health.died.connect(_on_died)
+	health.damaged.connect(func(_a, _s): EventBus.core_damaged.emit(int(team)))
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Team.body_color(team).darkened(0.15)
 	mat.emission_enabled = true
@@ -24,6 +25,9 @@ func _ready() -> void:
 
 func take_damage(amount: float, source: Node = null) -> void:
 	health.take_damage(amount, source)
+
+func get_hp() -> float:
+	return health.current_hp
 
 func _on_died(_source: Node) -> void:
 	EventBus.core_destroyed.emit(int(team))

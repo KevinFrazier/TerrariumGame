@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="HeroDefinition" load_steps=3 format=3 uid="uid://carcherhero0001"]
+
+[ext_resource type="Script" path="res://resources/hero_definition.gd" id="1_def"]
+
+[sub_resource type="CylinderMesh" id="Mesh_archer"]
+top_radius = 0.18
+bottom_radius = 0.5
+height = 2.0
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Archer"
+body_mesh = SubResource("Mesh_archer")
+max_hp = 190.0
+move_speed = 8.0
+melee_damage = 18.0
+fire_cooldown_sec = 0.35
+projectile_damage = 20.0
+projectile_speed = 38.0
+projectile_blast_radius = 0.0
+buff_kind = 2
+buff_magnitude = 1.5
+buff_duration_sec = 5.0
+buff_cooldown_sec = 12.0

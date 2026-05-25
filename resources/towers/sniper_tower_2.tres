@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=3 format=3 uid="uid://csnipertowerres2"]
+
+[ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" uid="uid://csnipertower0001" path="res://scenes/entities/towers/sniper_tower.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Sniper Tower II"
+cost = 110
+damage = 95.0
+attack_range = 26.0
+fire_rate_per_sec = 0.6
+max_hp = 190.0
+scene = ExtResource("2_scene")
+projectile_speed = 65.0
+applies_status = true
+status_effect = 6
+status_magnitude = 1.6
+status_duration_sec = 4.0
+targeting_priority = 2

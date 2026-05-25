@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TowerDefinition" load_steps=4 format=3 uid="uid://cmortartowerres1"]
+
+[ext_resource type="Script" path="res://resources/tower_definition.gd" id="1_def"]
+[ext_resource type="PackedScene" uid="uid://cmortartower0001" path="res://scenes/entities/towers/mortar_tower.tscn" id="2_scene"]
+[ext_resource type="Resource" uid="uid://cmortartowerres2" path="res://resources/towers/mortar_tower_2.tres" id="3_upgrade"]
+
+[resource]
+script = ExtResource("1_def")
+display_name = "Mortar Tower"
+cost = 140
+damage = 34.0
+attack_range = 18.0
+fire_rate_per_sec = 0.4
+max_hp = 170.0
+scene = ExtResource("2_scene")
+projectile_speed = 16.0
+projectile_gravity = true
+blast_radius = 5.0
+splash_falloff = true
+slow_factor = 0.5
+slow_duration_sec = 2.0
+upgrade = ExtResource("3_upgrade")
+upgrade_cost = 170

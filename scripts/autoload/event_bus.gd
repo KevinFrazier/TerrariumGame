@@ -4,9 +4,12 @@ extends Node
 
 signal hero_died(team: int, hero: Node)
 signal hero_respawned(team: int, hero: Node)
+signal hero_leveled(team: int, level: int)
 signal minion_died(team: int, killer_team: int, bounty: int)
 signal core_destroyed(team: int)
+signal core_damaged(team: int)
 signal tower_built(team: int, tower: Node)
 signal currency_changed(team: int, amount: int)
 signal match_started()
 signal match_ended(winner_team: int)
+signal swap_control_requested()

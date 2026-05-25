@@ -1,23 +1,56 @@
 class_name BuildMenu
 extends VBoxContainer
-## Tower build UI + placement. Select a tower, then tap/click the ground on your
-## own half to place it (enforcing currency and the per-team tower cap).
+## Tower build UI + placement. One button per tower type — select a type (which
+## also arms the hero's throw with it), then tap/click the ground on your own
+## half to place it (enforcing currency and the per-team tower cap).
 
-const BASIC: TowerDefinition = preload("res://resources/towers/basic_tower.tres")
+const TOWER_TYPES: Array[TowerDefinition] = [
+	preload("res://resources/towers/basic_tower.tres"),
+	preload("res://resources/towers/sniper_tower.tres"),
+	preload("res://resources/towers/cannon_tower.tres"),
+	preload("res://resources/towers/mortar_tower.tres"),
+]
+
+const PRIORITY_NAMES: Array[String] = ["Nearest", "Lowest HP", "Highest HP"]
 
 var active_hero: Hero
 var _placing: bool = false
+var _selected: int = 0
+var _buttons: Array[Button] = []
+var _priority_button: Button
 
-@onready var _build_button: Button = $BuildButton
 @onready var _count_label: Label = $CountLabel
 @onready var _hint_label: Label = $HintLabel
 
 func _ready() -> void:
-	_build_button.text = "%s (%d)" % [BASIC.display_name, BASIC.cost]
-	_build_button.pressed.connect(_on_build_pressed)
+	_build_type_buttons()
+	GameState.selected_tower = TOWER_TYPES[_selected]
+	_priority_button = Button.new()
+	_priority_button.pressed.connect(_on_priority_pressed)
+	add_child(_priority_button)
+	move_child(_priority_button, TOWER_TYPES.size())  # below the type buttons, above the labels
+	_update_priority_button()
 	EventBus.tower_built.connect(func(_t, _n): _refresh())
 	EventBus.currency_changed.connect(func(_t, _a): _refresh())
 	_refresh()
+
+func _on_priority_pressed() -> void:
+	GameState.target_priority = ((int(GameState.target_priority) + 1) % PRIORITY_NAMES.size()) as Targeter.Priority
+	_update_priority_button()
+
+func _update_priority_button() -> void:
+	_priority_button.text = "Target: %s" % PRIORITY_NAMES[int(GameState.target_priority)]
+
+func _build_type_buttons() -> void:
+	for i in TOWER_TYPES.size():
+		var def := TOWER_TYPES[i]
+		var button := Button.new()
+		button.text = "%s (%d)" % [def.display_name, def.cost]
+		button.pressed.connect(_on_type_pressed.bind(i))
+		add_child(button)
+		# Keep the type buttons above the count/hint labels (defined in the scene).
+		move_child(button, i)
+		_buttons.append(button)
 
 func set_active_hero(hero: Hero) -> void:
 	active_hero = hero
@@ -27,27 +60,46 @@ func set_active_hero(hero: Hero) -> void:
 func _team() -> Team.Id:
 	return active_hero.team if active_hero else Team.Id.A
 
+func _current_def() -> TowerDefinition:
+	return TOWER_TYPES[_selected]
+
 func _refresh() -> void:
 	var team := _team()
 	_count_label.text = "Towers: %d/%d" % [GameState.get_tower_count(team), GameState.MAX_TOWERS_PER_TEAM]
+	_update_buttons()
 	if not _placing:
 		_hint_label.text = ""
+
+func _update_buttons() -> void:
+	var team := _team()
+	for i in _buttons.size():
+		var button := _buttons[i]
+		var affordable := GameState.can_afford(team, TOWER_TYPES[i].cost)
+		# Brighten the selected type; dim types you can't currently afford.
+		var alpha := 1.0 if (i == _selected or affordable) else 0.5
+		button.modulate.a = alpha
+		button.modulate.v = 1.0 if i == _selected else 0.8
 
 func _set_hint(text: String) -> void:
 	_hint_label.text = text
 
-func _on_build_pressed() -> void:
+func _on_type_pressed(index: int) -> void:
 	if active_hero == null:
 		return
+	_selected = index
+	GameState.selected_tower = TOWER_TYPES[index]
 	var team := _team()
+	var def := TOWER_TYPES[index]
 	if not GameState.can_build_tower(team):
+		_placing = false
 		_set_hint("Tower limit reached")
-		return
-	if not GameState.can_afford(team, BASIC.cost):
-		_set_hint("Need %d gold" % BASIC.cost)
-		return
-	_placing = not _placing
-	_set_hint("Tap your side of the ground" if _placing else "")
+	elif not GameState.can_afford(team, def.cost):
+		_placing = false
+		_set_hint("Need %d gold" % def.cost)
+	else:
+		_placing = true
+		_set_hint("Tap your side to place %s" % def.display_name)
+	_update_buttons()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _placing or active_hero == null:
@@ -68,6 +120,7 @@ func _try_place(screen_pos: Vector2) -> void:
 	var cam := active_hero.camera
 	if cam == null:
 		return
+	var def := _current_def()
 	var from := cam.project_ray_origin(screen_pos)
 	var to := from + cam.project_ray_normal(screen_pos) * 500.0
 	var query := PhysicsRayQueryParameters3D.create(from, to, Team.LAYER_GROUND)
@@ -85,15 +138,16 @@ func _try_place(screen_pos: Vector2) -> void:
 		_placing = false
 		_set_hint("Tower limit reached")
 		return
-	if not GameState.spend_currency(team, BASIC.cost):
+	if not GameState.spend_currency(team, def.cost):
 		_placing = false
 		_set_hint("Not enough gold")
 		return
-	var tower := BASIC.scene.instantiate() as Tower
+	var tower := def.scene.instantiate() as Tower
 	tower.team = team
-	tower.definition = BASIC
+	tower.definition = def
 	active_hero.get_tree().current_scene.add_child(tower)
 	tower.global_position = point
+	tower.set_targeting_priority(GameState.target_priority)
 	GameState.register_tower(team)
 	EventBus.tower_built.emit(int(team), tower)
 	_placing = false
