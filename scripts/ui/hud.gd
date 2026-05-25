@@ -15,7 +15,6 @@ var _tower_label: Label3D  ## world-space inspect panel, floats beside the neare
 @onready var move_stick: VirtualJoystick = $MoveStick
 @onready var aim_stick: VirtualJoystick = $AimStick
 @onready var fire_button: Button = $Actions/FireButton
-@onready var melee_button: Button = $Actions/MeleeButton
 @onready var tower_button: Button = $Actions/TowerButton
 @onready var health_bar: ProgressBar = $TopBar/HealthBar
 @onready var currency_label: Label = $TopBar/CurrencyLabel
@@ -29,15 +28,25 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	result_panel.visible = false
 	fire_button.text = "FIRE"
-	melee_button.text = "MELEE"
 	back_button.pressed.connect(_on_back_pressed)
-	tower_button.toggled.connect(_on_tower_toggled)
+	# Projectile shoots on release; the tower throw arms on press, throws on release.
+	fire_button.button_up.connect(_on_fire_released)
+	tower_button.button_down.connect(_on_tower_pressed)
+	tower_button.button_up.connect(_on_tower_released)
 	aim_stick.set_sensitivity(GameState.aim_sensitivity)
 	EventBus.currency_changed.connect(_on_currency_changed)
 
-func _on_tower_toggled(pressed: bool) -> void:
+func _on_fire_released() -> void:
 	if _hero and is_instance_valid(_hero):
-		_hero.set_tower_throw_armed(pressed)
+		_hero.fire()
+
+func _on_tower_pressed() -> void:
+	if _hero and is_instance_valid(_hero):
+		_hero.set_tower_throw_armed(true)
+
+func _on_tower_released() -> void:
+	if _hero and is_instance_valid(_hero):
+		_hero.release_tower_throw()
 
 func set_active_hero(hero: Hero) -> void:
 	_hero = hero
@@ -53,14 +62,6 @@ func _process(_delta: float) -> void:
 	_hero.set_aim_input(aim_stick.get_value())
 	health_bar.value = _hero.health.fraction() * 100.0
 	fire_button.modulate.a = lerpf(0.4, 1.0, _hero.get_fire_ready())
-	melee_button.modulate.a = lerpf(0.4, 1.0, _hero.get_melee_ready())
-	if fire_button.button_pressed:
-		_hero.fire()
-	if melee_button.button_pressed:
-		_hero.melee()
-	# Keep the toggle in sync (the hero disarms itself after a throw).
-	if tower_button.button_pressed != _hero.is_tower_throw_armed():
-		tower_button.set_pressed_no_signal(_hero.is_tower_throw_armed())
 	_update_tower_info()
 
 ## Float a world-space stats panel beside the nearest tower the hero stands by.

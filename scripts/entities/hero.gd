@@ -148,13 +148,18 @@ func _physics_process(delta: float) -> void:
 	_facing = -cam_forward
 	_apply_facing(delta)
 
+	# Melee fires itself whenever an enemy steps into range.
+	_auto_melee()
+
 	if controlled:
+		# Hold the tower button to aim the arc, release to throw.
 		if Input.is_action_just_pressed("ability_1"):
-			set_tower_throw_armed(not _throw_armed)
-		if Input.is_action_pressed("fire"):
+			set_tower_throw_armed(true)
+		elif Input.is_action_just_released("ability_1"):
+			release_tower_throw()
+		# Projectile fires on release.
+		if Input.is_action_just_released("fire"):
 			fire()
-		if Input.is_action_just_pressed("melee"):
-			melee()
 
 	if _throw_armed:
 		_update_trajectory()
@@ -186,8 +191,8 @@ func _look_dir_3d() -> Vector3:
 
 # --- abilities (also called by HUD buttons) --------------------------------
 func fire() -> void:
+	# Don't shoot while aiming a tower throw; that gesture owns the release.
 	if _throw_armed:
-		_throw_tower()
 		return
 	if _fire_timer > 0.0 or health.is_dead() or projectile_scene == null:
 		return
@@ -208,6 +213,12 @@ func set_tower_throw_armed(armed: bool) -> void:
 
 func is_tower_throw_armed() -> bool:
 	return _throw_armed
+
+## Throw the tower if currently aiming, then disarm (button released).
+func release_tower_throw() -> void:
+	if _throw_armed:
+		_throw_tower()
+	set_tower_throw_armed(false)
 
 func _throw_tower() -> void:
 	if _fire_timer > 0.0 or health.is_dead():
@@ -296,19 +307,26 @@ func _hide_trajectory() -> void:
 	if _landing_marker:
 		_landing_marker.visible = false
 
+# Swing whenever the cooldown is ready and an enemy is in range.
+func _auto_melee() -> void:
+	if _melee_timer > 0.0 or health.is_dead():
+		return
+	if melee_area.has_overlapping_bodies():
+		melee()
+
 func melee() -> void:
 	if _melee_timer > 0.0 or health.is_dead():
 		return
-	_melee_timer = melee_cooldown_sec
+	var hit := false
 	for other in melee_area.get_overlapping_bodies():
 		if other.has_method("take_damage"):
 			other.take_damage(melee_damage, self)
+			hit = true
+	if hit:
+		_melee_timer = melee_cooldown_sec
 
 func get_fire_ready() -> float:
 	return 1.0 - (_fire_timer / fire_cooldown_sec) if fire_cooldown_sec > 0.0 else 1.0
-
-func get_melee_ready() -> float:
-	return 1.0 - (_melee_timer / melee_cooldown_sec) if melee_cooldown_sec > 0.0 else 1.0
 
 # --- damage / death --------------------------------------------------------
 func _on_died(_source: Node) -> void:
