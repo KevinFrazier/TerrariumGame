@@ -9,9 +9,9 @@ extends Node3D
 @onready var hero_b: Hero = $HeroB
 @onready var spawner_a: WaveSpawner = $SpawnerA
 @onready var spawner_b: WaveSpawner = $SpawnerB
-@onready var nav_region: NavigationRegion3D = $NavRegion
 @onready var hud: GameHUD = $HUD
 
+var nav_region: NavigationRegion3D
 var _local_hero: Hero
 
 func _ready() -> void:
@@ -43,6 +43,13 @@ func _configure_lanes() -> void:
 ## (cores, towers) so minions path around them. Parsed from static colliders in
 ## the "navigation_source" group.
 func _setup_navigation() -> void:
+	# Reuse the scene's region if present, otherwise create one so navigation
+	# never depends on a specific scene node existing.
+	nav_region = get_node_or_null("NavRegion") as NavigationRegion3D
+	if nav_region == null:
+		nav_region = NavigationRegion3D.new()
+		nav_region.name = "NavRegion"
+		add_child(nav_region)
 	var nm := NavigationMesh.new()
 	# Match the default navigation map cell size/height to register cleanly.
 	nm.set_cell_size(0.25)
