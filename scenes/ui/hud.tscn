@@ -112,7 +112,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -470.0
-offset_top = -290.0
+offset_top = -370.0
 offset_right = -250.0
 offset_bottom = -40.0
 theme_override_constants/separation = 12
@@ -133,6 +133,11 @@ text = "TOWER"
 custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
 text = "BUFF"
+
+[node name="SwapButton" type="Button" parent="Actions"]
+custom_minimum_size = Vector2(140, 56)
+layout_mode = 2
+text = "SWAP HERO"
 
 [node name="UpgradeButton" type="Button" parent="."]
 visible = false

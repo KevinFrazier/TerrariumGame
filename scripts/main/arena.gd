@@ -24,6 +24,7 @@ func _ready() -> void:
 	_configure_lanes()
 	EventBus.minion_died.connect(_on_minion_died)
 	EventBus.core_destroyed.connect(_on_core_destroyed)
+	EventBus.swap_control_requested.connect(_swap_control)
 	# Re-bake so freshly built towers become obstacles minions route around.
 	EventBus.tower_built.connect(func(_t, _n): _bake_navigation())
 
@@ -118,10 +119,14 @@ func _assign_control(team: Team.Id) -> void:
 	hero_b.set_controlled(team == Team.Id.B)
 	hud.set_active_hero(_local_hero)
 
+## Swap which hero the local player drives (Tab on desktop, SWAP button on touch).
+func _swap_control() -> void:
+	var next := Team.Id.B if GameState.local_team == Team.Id.A else Team.Id.A
+	_assign_control(next)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("swap_control"):
-		var next := Team.Id.B if GameState.local_team == Team.Id.A else Team.Id.A
-		_assign_control(next)
+		_swap_control()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_cancel"):
 		get_tree().quit()

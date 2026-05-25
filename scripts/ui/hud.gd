@@ -25,6 +25,7 @@ const MAX_STATUS_CHIPS := 12
 @onready var fire_button: Button = $Actions/FireButton
 @onready var tower_button: Button = $Actions/TowerButton
 @onready var buff_button: Button = $Actions/BuffButton
+@onready var swap_button: Button = $Actions/SwapButton
 @onready var upgrade_button: Button = $UpgradeButton
 @onready var health_bar: ProgressBar = $TopBar/HealthBar
 @onready var xp_bar: ProgressBar = $XPBar
@@ -48,6 +49,7 @@ func _ready() -> void:
 	fire_button.button_up.connect(_on_fire_released)
 	tower_button.toggled.connect(_on_tower_toggled)
 	buff_button.pressed.connect(_on_buff_pressed)
+	swap_button.pressed.connect(func(): EventBus.swap_control_requested.emit())
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	upgrade_button.visible = false
 	# Free-floating Control (no container parent) won't auto-size to its minimum,
