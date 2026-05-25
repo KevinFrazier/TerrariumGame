@@ -9,6 +9,7 @@ extends Node3D
 @onready var hero_b: Hero = $HeroB
 @onready var spawner_a: WaveSpawner = $SpawnerA
 @onready var spawner_b: WaveSpawner = $SpawnerB
+@onready var nav_region: NavigationRegion3D = $NavRegion
 @onready var hud: GameHUD = $HUD
 
 var _local_hero: Hero
@@ -17,9 +18,12 @@ func _ready() -> void:
 	GameState.reset_match()
 	GameState.match_active = true
 
+	_setup_navigation()
 	_configure_lanes()
 	EventBus.minion_died.connect(_on_minion_died)
 	EventBus.core_destroyed.connect(_on_core_destroyed)
+	# Re-bake so freshly built towers become obstacles minions route around.
+	EventBus.tower_built.connect(func(_t, _n): _bake_navigation())
 
 	_assign_control(GameState.local_team)
 
@@ -32,10 +36,33 @@ func _ready() -> void:
 	EventBus.currency_changed.emit(int(Team.Id.B), GameState.get_currency(Team.Id.B))
 
 func _configure_lanes() -> void:
-	var a_to_b: PackedVector3Array = [Vector3(0, 0, 0), core_b.global_position]
-	var b_to_a: PackedVector3Array = [Vector3(0, 0, 0), core_a.global_position]
-	spawner_a.configure(Team.Id.A, a_to_b)
-	spawner_b.configure(Team.Id.B, b_to_a)
+	spawner_a.configure(Team.Id.A, core_b.global_position)
+	spawner_b.configure(Team.Id.B, core_a.global_position)
+
+## Build a NavigationMesh over the ground, carving holes around static structures
+## (cores, towers) so minions path around them. Parsed from static colliders in
+## the "navigation_source" group.
+func _setup_navigation() -> void:
+	var nm := NavigationMesh.new()
+	# Match the default navigation map cell size/height to register cleanly.
+	nm.set_cell_size(0.25)
+	nm.set_cell_height(0.25)
+	nm.set_agent_radius(0.4)
+	nm.set_agent_height(1.2)
+	nm.set_agent_max_climb(0.5)
+	nm.set_parsed_geometry_type(NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS)
+	nm.set_collision_mask(Team.LAYER_WORLD | Team.LAYER_GROUND)
+	nm.set_source_geometry_mode(NavigationMesh.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN)
+	nm.set_source_group_name(&"navigation_source")
+	nav_region.navigation_mesh = nm
+	$Ground.add_to_group("navigation_source")
+	core_a.add_to_group("navigation_source")
+	core_b.add_to_group("navigation_source")
+	_bake_navigation()
+
+func _bake_navigation() -> void:
+	if nav_region:
+		nav_region.bake_navigation_mesh(false)
 
 func _hero_for(team: Team.Id) -> Hero:
 	return hero_a if team == Team.Id.A else hero_b

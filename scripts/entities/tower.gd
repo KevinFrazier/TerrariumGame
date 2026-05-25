@@ -37,6 +37,7 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 
 func _ready() -> void:
 	add_to_group("damageable")
 	add_to_group("towers")
+	add_to_group("navigation_source")  # minions navmesh-route around towers
 	collision_layer = Team.body_layer(team) | Team.LAYER_WORLD
 	collision_mask = 0
 	_proj_scene = projectile_scene
@@ -118,6 +119,10 @@ func _play_fire_av() -> void:
 		_anim.play("fire")
 	if _fire_sound != null and _fire_sound.stream != null:
 		_fire_sound.play()
+
+## Override the targeting preference (e.g. from the build menu) after spawning.
+func set_targeting_priority(p: Targeter.Priority) -> void:
+	_priority = p
 
 func take_damage(amount: float, source: Node = null) -> void:
 	health.take_damage(amount, source)

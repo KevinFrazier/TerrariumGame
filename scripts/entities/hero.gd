@@ -152,11 +152,12 @@ func _physics_process(delta: float) -> void:
 	_auto_melee()
 
 	if controlled:
-		# Hold the tower button to aim the arc, release to throw.
+		# Tap to arm/aim (you keep full camera aim while armed); tap again to throw.
 		if Input.is_action_just_pressed("ability_1"):
-			set_tower_throw_armed(true)
-		elif Input.is_action_just_released("ability_1"):
-			release_tower_throw()
+			if _throw_armed:
+				release_tower_throw()
+			else:
+				set_tower_throw_armed(true)
 		# Projectile fires on release.
 		if Input.is_action_just_released("fire"):
 			fire()
@@ -251,6 +252,7 @@ func _on_throw_landed(position: Vector3, def: TowerDefinition, build_team: Team.
 	tower.definition = def
 	get_tree().current_scene.add_child(tower)
 	tower.global_position = spot
+	tower.set_targeting_priority(GameState.target_priority)
 	EventBus.tower_built.emit(int(build_team), tower)
 
 func _ensure_throw_visuals() -> void:

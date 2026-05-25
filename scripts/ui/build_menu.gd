@@ -11,10 +11,13 @@ const TOWER_TYPES: Array[TowerDefinition] = [
 	preload("res://resources/towers/mortar_tower.tres"),
 ]
 
+const PRIORITY_NAMES: Array[String] = ["Nearest", "Lowest HP", "Highest HP"]
+
 var active_hero: Hero
 var _placing: bool = false
 var _selected: int = 0
 var _buttons: Array[Button] = []
+var _priority_button: Button
 
 @onready var _count_label: Label = $CountLabel
 @onready var _hint_label: Label = $HintLabel
@@ -22,9 +25,21 @@ var _buttons: Array[Button] = []
 func _ready() -> void:
 	_build_type_buttons()
 	GameState.selected_tower = TOWER_TYPES[_selected]
+	_priority_button = Button.new()
+	_priority_button.pressed.connect(_on_priority_pressed)
+	add_child(_priority_button)
+	move_child(_priority_button, TOWER_TYPES.size())  # below the type buttons, above the labels
+	_update_priority_button()
 	EventBus.tower_built.connect(func(_t, _n): _refresh())
 	EventBus.currency_changed.connect(func(_t, _a): _refresh())
 	_refresh()
+
+func _on_priority_pressed() -> void:
+	GameState.target_priority = ((int(GameState.target_priority) + 1) % PRIORITY_NAMES.size()) as Targeter.Priority
+	_update_priority_button()
+
+func _update_priority_button() -> void:
+	_priority_button.text = "Target: %s" % PRIORITY_NAMES[int(GameState.target_priority)]
 
 func _build_type_buttons() -> void:
 	for i in TOWER_TYPES.size():
@@ -132,6 +147,7 @@ func _try_place(screen_pos: Vector2) -> void:
 	tower.definition = def
 	active_hero.get_tree().current_scene.add_child(tower)
 	tower.global_position = point
+	tower.set_targeting_priority(GameState.target_priority)
 	GameState.register_tower(team)
 	EventBus.tower_built.emit(int(team), tower)
 	_placing = false

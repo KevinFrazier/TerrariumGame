@@ -9,6 +9,7 @@ var local_team: Team.Id = Team.Id.A          ## Which hero the single player dri
 var winner: Team.Id = Team.Id.NEUTRAL
 var match_active: bool = false
 var selected_tower: TowerDefinition          ## Tower type the build menu/throw will place.
+var target_priority: Targeter.Priority = Targeter.Priority.NEAREST  ## Targeting preference for newly built towers.
 var aim_sensitivity: float = 0.5             ## Aim stick sensitivity; 1.0 = full, 0.5 = half (default).
 
 var _currency := {Team.Id.A: 0, Team.Id.B: 0}

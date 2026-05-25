@@ -1,8 +1,9 @@
 class_name Minion
 extends CombatActor
-## Lane creep. Marches along waypoints toward the enemy core; if the shared
-## Targeter finds an enemy in range, it stops to attack on a cooldown. Awards a
-## bounty to the killer's team on death.
+## Lane creep. Uses a NavigationAgent3D to find the shortest path across the
+## arena's NavigationRegion3D toward the enemy core, routing around structures.
+## If the shared Targeter finds an enemy in range, it stops to attack on a
+## cooldown. Awards a bounty to the killer's team on death.
 
 @export var move_speed: float = 4.0
 @export var attack_damage: float = 10.0
@@ -10,12 +11,12 @@ extends CombatActor
 @export var attack_range: float = 2.4
 @export var bounty: int = 15
 
-var _path: PackedVector3Array = PackedVector3Array()
-var _path_index: int = 0
+var _destination: Vector3 = Vector3.ZERO
 var _attack_timer: float = 0.0
 
 @onready var targeter: Targeter = $Targeter
 @onready var mesh: MeshInstance3D = $Mesh
+@onready var nav_agent: NavigationAgent3D = $NavAgent
 
 func _ready() -> void:
 	add_to_group("damageable")
@@ -29,10 +30,11 @@ func _ready() -> void:
 	mat.albedo_color = Team.body_color(team).lightened(0.1)
 	mesh.material_override = mat
 
-## World-space waypoints, ending at the enemy core position.
-func set_path(points: PackedVector3Array) -> void:
-	_path = points
-	_path_index = 0
+## Final goal (the enemy core); the nav agent finds the shortest route there.
+func set_destination(world_pos: Vector3) -> void:
+	_destination = world_pos
+	if is_node_ready():
+		nav_agent.target_position = world_pos
 
 func _physics_process(delta: float) -> void:
 	tick_slow(delta)
@@ -46,9 +48,9 @@ func _physics_process(delta: float) -> void:
 			_stop_horizontal()
 			_try_attack(target)
 		else:
-			_move_toward(target.global_position, delta)
+			_navigate_to(target.global_position, delta)
 	else:
-		_advance_along_path(delta)
+		_navigate_to(_destination, delta)
 
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
@@ -56,21 +58,14 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	move_and_slide()
 
-func _advance_along_path(delta: float) -> void:
-	if _path.is_empty() or _path_index >= _path.size():
+## Steer one step along the agent's path toward `goal`.
+func _navigate_to(goal: Vector3, delta: float) -> void:
+	nav_agent.target_position = goal
+	if nav_agent.is_navigation_finished():
 		_stop_horizontal()
 		return
-	var goal := _path[_path_index]
-	if global_position.distance_to(goal) < 1.0:
-		_path_index += 1
-		if _path_index >= _path.size():
-			_stop_horizontal()
-			return
-		goal = _path[_path_index]
-	_move_toward(goal, delta)
-
-func _move_toward(world_pos: Vector3, delta: float) -> void:
-	var dir := world_pos - global_position
+	var next := nav_agent.get_next_path_position()
+	var dir := next - global_position
 	dir.y = 0.0
 	if dir.length_squared() < 0.0001:
 		_stop_horizontal()
@@ -79,7 +74,7 @@ func _move_toward(world_pos: Vector3, delta: float) -> void:
 	var spd := move_speed * speed_mult()
 	velocity.x = dir.x * spd
 	velocity.z = dir.z * spd
-	_face_toward(world_pos, delta)
+	_face_toward(next, delta)
 
 func _face_toward(world_pos: Vector3, delta: float) -> void:
 	var dir := world_pos - global_position

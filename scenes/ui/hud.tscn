@@ -110,7 +110,7 @@ text = "FIRE"
 [node name="TowerButton" type="Button" parent="Actions"]
 custom_minimum_size = Vector2(140, 70)
 layout_mode = 2
-toggle_mode = false
+toggle_mode = true
 text = "TOWER"
 
 [node name="ResultPanel" type="Panel" parent="."]
