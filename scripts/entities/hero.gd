@@ -40,6 +40,7 @@ var _cam_pitch := 0.45
 var _fire_timer := 0.0
 var _melee_timer := 0.0
 var _throw_armed := false
+var _respawn_countdown: SceneTreeTimer
 var _trajectory: MeshInstance3D
 var _landing_marker: MeshInstance3D
 var _spawn_transform: Transform3D
@@ -335,9 +336,16 @@ func _on_died(_source: Node) -> void:
 	EventBus.hero_died.emit(int(team), self)
 	set_tower_throw_armed(false)
 	_set_dead_visual(true)
-	await get_tree().create_timer(respawn_delay_sec).timeout
+	_respawn_countdown = get_tree().create_timer(respawn_delay_sec)
+	await _respawn_countdown.timeout
 	if is_instance_valid(self):
 		_respawn()
+
+## Seconds until this hero respawns (0 when alive). Drives the HUD countdown.
+func get_respawn_remaining() -> float:
+	if health.is_dead() and _respawn_countdown != null:
+		return _respawn_countdown.time_left
+	return 0.0
 
 func _set_dead_visual(dead: bool) -> void:
 	body.visible = not dead

@@ -20,6 +20,8 @@ var _tower_label: Label3D  ## world-space inspect panel, floats beside the neare
 @onready var currency_label: Label = $TopBar/CurrencyLabel
 @onready var team_label: Label = $TopBar/TeamLabel
 @onready var build_menu: BuildMenu = $BuildMenu
+@onready var respawn_panel: Panel = $RespawnPanel
+@onready var respawn_countdown: Label = $RespawnPanel/VBox/CountdownLabel
 @onready var result_panel: Panel = $ResultPanel
 @onready var result_label: Label = $ResultPanel/VBox/ResultLabel
 @onready var back_button: Button = $ResultPanel/VBox/BackButton
@@ -65,7 +67,16 @@ func _process(_delta: float) -> void:
 	# Keep the toggle visual in sync (the hero auto-disarms after throwing).
 	if tower_button.button_pressed != _hero.is_tower_throw_armed():
 		tower_button.set_pressed_no_signal(_hero.is_tower_throw_armed())
+	_update_respawn_overlay()
 	_update_tower_info()
+
+## Show a respawn countdown while the active hero is dead.
+func _update_respawn_overlay() -> void:
+	if _hero.health.is_dead():
+		respawn_countdown.text = "Respawning in %d..." % ceili(_hero.get_respawn_remaining())
+		respawn_panel.visible = true
+	else:
+		respawn_panel.visible = false
 
 ## Float a world-space stats panel beside the nearest tower the hero stands by.
 func _update_tower_info() -> void:

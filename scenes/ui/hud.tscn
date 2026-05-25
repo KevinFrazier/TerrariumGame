@@ -113,6 +113,39 @@ layout_mode = 2
 toggle_mode = true
 text = "TOWER"
 
+[node name="RespawnPanel" type="Panel" parent="."]
+visible = false
+mouse_filter = 2
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = -55.0
+offset_right = 190.0
+offset_bottom = 55.0
+
+[node name="VBox" type="VBoxContainer" parent="RespawnPanel"]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = -12.0
+mouse_filter = 2
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="TitleLabel" type="Label" parent="RespawnPanel/VBox"]
+mouse_filter = 2
+text = "You died"
+horizontal_alignment = 1
+
+[node name="CountdownLabel" type="Label" parent="RespawnPanel/VBox"]
+mouse_filter = 2
+text = "Respawning in 4..."
+horizontal_alignment = 1
+
 [node name="ResultPanel" type="Panel" parent="."]
 visible = false
 anchor_left = 0.5
